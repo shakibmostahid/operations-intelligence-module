@@ -1,0 +1,4 @@
+envs/app.env
+envs/nginx.env
+envs/mysql.env
+.env

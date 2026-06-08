@@ -1,0 +1,61 @@
+name: ${COMPOSE_PROJECT_NAME:-operations-intelligence-module}
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: operations-intelligence-module-app
+    working_dir: /var/www/html
+    env_file:
+      - ${APP_ENV_FILE:-./envs/app.env}
+    depends_on:
+      - mysql
+      - nginx
+    networks:
+      app-network:
+        aliases:
+          - app
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/Nginx.Dockerfile
+    container_name: operations-intelligence-module-nginx
+    restart: unless-stopped
+    env_file:
+      - ${NGINX_ENV_FILE:-./envs/nginx.env}
+    ports:
+      - "${NGINX_PORT:-8000}:80"
+    networks:
+      app-network:
+        aliases:
+          - nginx
+
+  mysql:
+    image: mysql:8.4
+    container_name: operations-intelligence-module-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    env_file:
+      - ${APP_ENV_FILE:-./envs/app.env}
+      - ${MYSQL_ENV_FILE:-./envs/mysql.env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u $$MYSQL_USER -p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      app-network:
+        aliases:
+          - mysql
+
+networks:
+  app-network:
+    name: operations-intelligence-module-network
+
+volumes:
+  mysql-data:

@@ -1,0 +1,6 @@
+.git
+codes/.env
+codes/node_modules
+codes/storage/logs/*
+docker/.env
+docker/envs/*.env
