@@ -18,7 +18,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         <section class="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10">
             <div class="w-full max-w-[420px]">
                 <a href="/" class="mb-14 inline-flex items-center gap-3 text-[#172027]">
-                    <span class="grid size-10 place-items-center bg-[#c8f169] text-sm font-bold">OP</span>
+                    <span class="grid size-10 place-items-center bg-[#c8f169] text-sm font-bold">FGL</span>
                     <span>
                         <strong class="block text-lg leading-5">FGL Incident &amp; Operations Tracking</strong>
                         <span class="text-xs text-[#667079]">Operations intelligence</span>

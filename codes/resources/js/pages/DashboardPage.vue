@@ -1,48 +1,26 @@
 <script setup>
+import AppHeader from '../components/AppHeader.vue';
+
 defineProps({
     user: {
         type: Object,
         required: true,
     },
+    success: {
+        type: String,
+        default: null,
+    },
 });
-
-const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 </script>
 
 <template>
     <div class="min-h-screen bg-[#f3f5f7] text-[#172027]">
-        <header class="border-b border-[#dce1e4] bg-white">
-            <div class="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 sm:px-8">
-                <div class="flex items-center gap-8">
-                    <a href="/dashboard" class="flex items-center gap-3">
-                        <span class="grid size-9 place-items-center bg-[#c8f169] text-xs font-bold">OP</span>
-                        <strong class="text-base">FGL Incident &amp; Operations Tracking</strong>
-                    </a>
-                    <nav class="hidden items-center gap-6 text-sm md:flex">
-                        <a href="/dashboard" class="font-semibold">Overview</a>
-                        <span class="text-[#899298]">Incidents</span>
-                    </nav>
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <div class="hidden text-right sm:block">
-                        <p class="text-sm font-medium">{{ user.name }}</p>
-                        <p class="text-xs text-[#788188]">{{ user.email }}</p>
-                    </div>
-                    <form action="/logout" method="POST">
-                        <input type="hidden" name="_token" :value="csrfToken">
-                        <button
-                            type="submit"
-                            class="border border-[#cbd1d5] bg-white px-3 py-2 text-sm font-medium transition hover:border-[#899298] hover:bg-[#f7f8f9]"
-                        >
-                            Sign out
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </header>
+        <AppHeader :user="user" current="dashboard" />
 
         <main class="mx-auto max-w-[1440px] px-5 py-8 sm:px-8">
+            <div v-if="success" class="mb-6 border border-[#9fc55a] bg-[#f7ffe8] px-4 py-3 text-sm text-[#526d23]">
+                {{ success }}
+            </div>
             <div class="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-[#dce1e4] pb-6">
                 <div>
                     <p class="mb-2 text-xs font-semibold uppercase text-[#297069]">Operations overview</p>

@@ -2,7 +2,7 @@
 
 ## Summary
 
-An operations intelligence application for tracking incidents, operational activity, ownership, and SLA status. The current version includes Dockerized Laravel and Vue, session authentication, user roles, a login page, and an initial dashboard.
+An operations intelligence application for tracking incidents, operational activity, ownership, and SLA status. The current version includes Dockerized Laravel and Vue, session authentication, user roles, password changes, user creation, and an initial dashboard.
 
 ## Technologies
 
@@ -108,7 +108,8 @@ viewer@fgl.com
 
 - Authentication uses Laravel's web guard and database sessions.
 - Accounts must have `status=active`.
-- Accounts with `must_change_password=true` cannot sign in yet.
+- Accounts with `must_change_password=true` are redirected to change their temporary password.
+- Only `super_admin` and `admin` users can create users.
 - Rejected users are logged out and shown a contact-support message.
 - Successful login regenerates the session ID and redirects to `/dashboard`.
 - Session lifetime is 120 minutes of inactivity.

@@ -44,10 +44,9 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($user->must_change_password) {
-            return $this->rejectLogin(
-                $request,
-                'Your password must be changed before you can sign in. Please contact support.',
-            );
+            $request->session()->regenerate();
+
+            return redirect()->route('password.change');
         }
 
         $request->session()->regenerate();
