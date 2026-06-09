@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordChangeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -22,21 +23,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     Route::middleware('password.changed')->group(function (): void {
-        Route::get('/dashboard', function () {
-            $user = request()->user()->load('role');
-
-            return view('app', [
-                'page' => 'dashboard',
-                'props' => [
-                    'user' => [
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'role' => $user->role->role,
-                    ],
-                    'success' => session('success'),
-                ],
-            ]);
-        })->name('dashboard');
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'updateName'])->name('profile.update');
