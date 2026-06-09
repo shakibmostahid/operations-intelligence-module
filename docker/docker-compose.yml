@@ -23,8 +23,8 @@ services:
       dockerfile: docker/Nginx.Dockerfile
     container_name: operations-intelligence-module-nginx
     restart: unless-stopped
-    env_file:
-      - ${NGINX_ENV_FILE:-./envs/nginx.env}
+    # env_file:
+    #   - ${NGINX_ENV_FILE:-./envs/nginx.env}
     ports:
       - "${NGINX_PORT:-8000}:80"
     networks:
@@ -39,7 +39,6 @@ services:
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     env_file:
-      - ${APP_ENV_FILE:-./envs/app.env}
       - ${MYSQL_ENV_FILE:-./envs/mysql.env}
     volumes:
       - mysql-data:/var/lib/mysql
