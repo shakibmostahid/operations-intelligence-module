@@ -46,12 +46,14 @@ class AuthenticatedSessionController extends Controller
         if ($user->must_change_password) {
             $request->session()->regenerate();
 
-            return redirect()->route('password.change');
+            return redirect()->to(route('password.change', absolute: false));
         }
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        $request->session()->forget('url.intended');
+
+        return redirect()->to(route('dashboard', absolute: false));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -61,7 +63,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->to(route('login', absolute: false));
     }
 
     private function rejectLogin(Request $request, string $message): RedirectResponse
@@ -72,7 +74,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()
-            ->route('login')
+            ->to(route('login', absolute: false))
             ->withInput($request->only('email'))
             ->withErrors(['email' => $message]);
     }

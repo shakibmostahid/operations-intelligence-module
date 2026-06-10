@@ -4,16 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\DashboardService;
+use App\Services\IncidentService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Throwable;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly DashboardService $dashboardService)
-    {
+    public function __construct(
+        private readonly DashboardService $dashboardService,
+        private readonly IncidentService $incidentService,
+    ) {
     }
 
     public function __invoke(Request $request): View
@@ -33,12 +37,22 @@ class DashboardController extends Controller
             'props' => [
                 'user' => $this->authenticatedUser($user),
                 'analytics' => $this->dashboardService->analytics($from, $to),
+                'slaBreaches' => $this->incidentService->unresolvedBreaches(),
                 'timeframe' => $timeframe,
                 'dateFrom' => $from?->toDateString(),
                 'dateTo' => $to?->toDateString(),
                 'success' => session('success'),
             ],
         ]);
+    }
+
+    public function slaBreaches(Request $request): JsonResponse
+    {
+        $request->validate([
+            'sla_page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return response()->json($this->incidentService->unresolvedBreaches());
     }
 
     /**

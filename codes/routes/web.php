@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,15 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('password.changed')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/dashboard/sla-breaches', [DashboardController::class, 'slaBreaches'])
+            ->name('dashboard.sla-breaches');
+        Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
+        Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incidents.create');
+        Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
+        Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
+        Route::patch('/incidents/{incident}', [IncidentController::class, 'update'])->name('incidents.update');
+        Route::post('/incidents/{incident}/comments', [IncidentController::class, 'comment'])
+            ->name('incidents.comments.store');
 
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'updateName'])->name('profile.update');

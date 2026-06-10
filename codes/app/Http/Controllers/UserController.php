@@ -68,7 +68,7 @@ class UserController extends Controller
         $result = $this->userService->createUser($request->user(), $validated);
 
         return redirect()
-            ->route('users.create')
+            ->to(route('users.create', absolute: false))
             ->with('created_user', $result['user']->only('name', 'email'))
             ->with('temporary_password', Crypt::encryptString($result['temporary_password']));
     }

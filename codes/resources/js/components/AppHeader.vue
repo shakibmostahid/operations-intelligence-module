@@ -40,6 +40,12 @@ const initials = computed(() => props.user.name
                         Overview
                     </a>
                     <a
+                        href="/incidents"
+                        :class="current === 'incidents' ? 'font-semibold' : 'text-[#667079] hover:text-[#172027]'"
+                    >
+                        Incidents
+                    </a>
+                    <a
                         v-if="canManageUsers"
                         href="/users"
                         :class="current === 'users' ? 'font-semibold' : 'text-[#667079] hover:text-[#172027]'"

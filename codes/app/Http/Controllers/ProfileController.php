@@ -41,7 +41,7 @@ class ProfileController extends Controller
         $this->profileService->updateName($request->user(), $validated['name']);
 
         return redirect()
-            ->route('profile.edit')
+            ->to(route('profile.edit', absolute: false))
             ->with('success', 'Profile name updated successfully.');
     }
 
@@ -62,7 +62,7 @@ class ProfileController extends Controller
         $request->session()->regenerate();
 
         return redirect()
-            ->route('profile.edit')
+            ->to(route('profile.edit', absolute: false))
             ->with('success', 'Password updated successfully.');
     }
 }

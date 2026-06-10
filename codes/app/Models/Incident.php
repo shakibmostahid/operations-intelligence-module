@@ -24,6 +24,10 @@ class Incident extends Model
 {
     use HasFactory;
 
+    public const SEVERITIES = ['low', 'medium', 'high', 'critical'];
+
+    public const STATUSES = ['open', 'investigating', 'escalated', 'resolved'];
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

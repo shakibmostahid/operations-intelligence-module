@@ -43,7 +43,7 @@ class PasswordChangeController extends Controller
         $request->session()->regenerate();
 
         return redirect()
-            ->route('dashboard')
+            ->to(route('dashboard', absolute: false))
             ->with('success', 'Password changed successfully.');
     }
 }

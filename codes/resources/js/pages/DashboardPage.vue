@@ -11,6 +11,10 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    slaBreaches: {
+        type: Object,
+        required: true,
+    },
     timeframe: {
         type: String,
         default: '30',
@@ -31,6 +35,9 @@ const props = defineProps({
 
 const dimension = ref('severity');
 const selectedTimeframe = ref(props.timeframe);
+const slaResults = ref(props.slaBreaches);
+const slaLoading = ref(false);
+const slaError = ref('');
 const palette = ['#DC2626', '#D97706', '#2563EB', '#0891B2', '#7C3AED', '#475569'];
 const distribution = computed(() => props.analytics[dimension.value] || []);
 const distributionTotal = computed(() => distribution.value.reduce((total, item) => total + item.count, 0));
@@ -51,10 +58,64 @@ const pieStyle = computed(() => {
     return { background: `conic-gradient(${segments.join(', ')})` };
 });
 const maxTagCount = computed(() => Math.max(...props.analytics.tags.map((tag) => tag.count), 1));
+const slaPages = computed(() => {
+    const current = slaResults.value.current_page;
+    const last = slaResults.value.last_page;
+
+    if (last <= 5) {
+        return Array.from({ length: last }, (_, index) => index + 1);
+    }
+
+    const pages = [1];
+
+    for (let page = Math.max(2, current - 1); page <= Math.min(last - 1, current + 1); page += 1) {
+        pages.push(page);
+    }
+
+    pages.push(last);
+
+    return [...new Set(pages)]
+        .sort((first, second) => first - second)
+        .flatMap((page, index, sortedPages) => {
+            if (index > 0 && page - sortedPages[index - 1] > 1) {
+                return [`ellipsis-${page}`, page];
+            }
+
+            return [page];
+        });
+});
 
 const label = (value) => value
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const loadSlaPage = async (page) => {
+    if (slaLoading.value || page === slaResults.value.current_page) {
+        return;
+    }
+
+    slaLoading.value = true;
+    slaError.value = '';
+
+    try {
+        const response = await fetch(`/dashboard/sla-breaches?sla_page=${page}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Unable to load SLA breaches.');
+        }
+
+        slaResults.value = await response.json();
+    } catch (error) {
+        slaError.value = error.message;
+    } finally {
+        slaLoading.value = false;
+    }
+};
 
 </script>
 
@@ -138,6 +199,82 @@ const label = (value) => value
                     <p class="mt-2 text-2xl font-semibold text-[#8a5b12]">
                         {{ analytics.status.find((item) => item.label === 'escalated')?.count || 0 }}
                     </p>
+                </div>
+            </section>
+
+            <section class="mb-6 bg-white">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#e3e7e9] px-5 py-4">
+                    <div>
+                        <p class="text-sm font-semibold">Unresolved SLA breaches</p>
+                        <p class="mt-1 text-xs text-[#667079]">Overdue incidents requiring operational attention.</p>
+                    </div>
+                    <a href="/incidents?sla=breached" class="text-sm font-medium text-[#297069]">View all breaches</a>
+                </div>
+
+                <div v-if="slaResults.data.length > 0" class="relative overflow-x-auto">
+                    <div v-if="slaLoading" class="absolute inset-0 z-10 grid place-items-center bg-white/75 text-sm font-medium text-[#667079]">
+                        Loading incidents...
+                    </div>
+                    <table class="w-full min-w-[760px] text-left text-sm">
+                        <thead class="border-b border-[#e3e7e9] bg-[#f7f8f9] text-xs uppercase text-[#667079]">
+                            <tr>
+                                <th class="px-5 py-3">Incident</th>
+                                <th class="px-5 py-3">Severity</th>
+                                <th class="px-5 py-3">Owner</th>
+                                <th class="px-5 py-3">Deadline</th>
+                                <th class="px-5 py-3">Overdue</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#e3e7e9]">
+                            <tr v-for="incident in slaResults.data" :key="incident.id" class="hover:bg-[#fafbfb]">
+                                <td class="px-5 py-4">
+                                    <a :href="`/incidents/${incident.id}`" class="font-medium hover:text-[#297069]">{{ incident.title }}</a>
+                                    <p class="mt-1 text-xs text-[#788188]">{{ label(incident.status) }}</p>
+                                </td>
+                                <td class="px-5 py-4 font-medium">{{ label(incident.severity) }}</td>
+                                <td class="px-5 py-4 text-[#667079]">{{ incident.assignee || 'Unassigned' }}</td>
+                                <td class="px-5 py-4 text-[#667079]">{{ incident.sla_deadline }}</td>
+                                <td class="px-5 py-4 font-semibold text-[#b53c36]">{{ incident.overdue_for }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-else class="px-5 py-10 text-center text-sm text-[#667079]">
+                    No unresolved SLA breaches.
+                </div>
+
+                <p v-if="slaError" class="border-t border-[#e3e7e9] px-5 py-3 text-sm text-[#b53c36]">
+                    {{ slaError }}
+                </p>
+
+                <div
+                    v-if="slaResults.last_page > 1"
+                    class="flex items-center justify-between gap-4 border-t border-[#e3e7e9] px-5 py-3 text-sm"
+                >
+                    <span class="text-[#667079]">{{ slaResults.total }} breaches</span>
+                    <nav class="flex items-center" aria-label="SLA breach pagination">
+                        <template v-for="page in slaPages" :key="page">
+                            <span
+                                v-if="String(page).startsWith('ellipsis-')"
+                                class="grid size-9 place-items-center text-[#899298]"
+                                aria-hidden="true"
+                            >
+                                ...
+                            </span>
+                            <button
+                                v-else
+                                type="button"
+                                class="grid size-9 place-items-center border-y border-r border-[#cbd1d5] first:border-l disabled:cursor-wait"
+                                :class="page === slaResults.current_page ? 'bg-[#172027] font-semibold text-white' : 'bg-white hover:bg-[#f3f5f7]'"
+                                :disabled="slaLoading"
+                                :aria-current="page === slaResults.current_page ? 'page' : undefined"
+                                @click="loadSlaPage(page)"
+                            >
+                                {{ page }}
+                            </button>
+                        </template>
+                    </nav>
                 </div>
             </section>
 
