@@ -29,9 +29,11 @@ COPY docker/configs/php.ini /usr/local/etc/php/conf.d/app.ini
 COPY docker/entrypoints/app-entrypoint.sh /usr/local/bin/app-entrypoint
 COPY --chown=www-data:www-data codes /var/www/html
 
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+RUN rm -f public/hot public/fonts-manifest.dev.json \
+    && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && npm ci \
     && npm run build \
+    && rm -f public/hot public/fonts-manifest.dev.json \
     && rm -rf node_modules \
     && chmod +x /usr/local/bin/app-entrypoint
 

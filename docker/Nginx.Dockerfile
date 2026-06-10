@@ -4,8 +4,10 @@ WORKDIR /app
 
 COPY codes /app
 
-RUN npm ci \
-    && npm run build
+RUN rm -f public/hot public/fonts-manifest.dev.json \
+    && npm ci \
+    && npm run build \
+    && rm -f public/hot public/fonts-manifest.dev.json
 
 FROM nginx:1.27-alpine
 

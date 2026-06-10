@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+rm -f public/hot public/fonts-manifest.dev.json
+
 if [ "$1" = "dev" ]; then
     if [ ! -d vendor ]; then
         composer install --no-interaction --prefer-dist
