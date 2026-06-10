@@ -10,8 +10,10 @@ services:
     env_file:
       - ${APP_ENV_FILE:-./envs/app.env}
     depends_on:
-      - mysql
-      - nginx
+      mysql:
+        condition: service_healthy
+    volumes:
+      - build-assets:/var/www/html/public/build
     networks:
       app-network:
         aliases:
@@ -23,10 +25,20 @@ services:
       dockerfile: docker/Nginx.Dockerfile
     container_name: operations-intelligence-module-nginx
     restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
     # env_file:
     #   - ${NGINX_ENV_FILE:-./envs/nginx.env}
     ports:
       - "${NGINX_PORT:-8000}:80"
+    volumes:
+      - build-assets:/var/www/html/public/build
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/www/html/public/build/manifest.json"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       app-network:
         aliases:
@@ -58,3 +70,4 @@ networks:
 
 volumes:
   mysql-data:
+  build-assets:

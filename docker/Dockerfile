@@ -31,10 +31,6 @@ COPY --chown=www-data:www-data codes /var/www/html
 
 RUN rm -f public/hot public/fonts-manifest.dev.json \
     && composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
-    && npm ci \
-    && npm run build \
-    && rm -f public/hot public/fonts-manifest.dev.json \
-    && rm -rf node_modules \
     && chmod +x /usr/local/bin/app-entrypoint
 
 EXPOSE 9000
