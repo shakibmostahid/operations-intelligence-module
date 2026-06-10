@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class IncidentService
 {
+    public function __construct(private readonly AlertRoutingService $alertRoutingService)
+    {
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -97,7 +101,50 @@ class IncidentService
                 ],
             ]);
 
+            $this->alertRoutingService->route('incident_created', $incident);
+
             return $incident;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{0: Incident, 1: bool}
+     */
+    public function ingestIncident(User $actor, array $data): array
+    {
+        $existing = Incident::query()
+            ->where('source', $data['source'])
+            ->where('external_id', $data['external_id'])
+            ->first();
+
+        if ($existing !== null) {
+            return [$existing, false];
+        }
+
+        return DB::transaction(function () use ($actor, $data): array {
+            $tagIds = $data['tag_ids'] ?? [];
+            unset($data['tag_ids']);
+
+            $incident = Incident::query()->create([
+                ...$data,
+                'status' => 'open',
+                'created_by' => $actor->id,
+            ]);
+            $incident->tags()->sync($tagIds);
+            $incident->activities()->create([
+                'user_id' => $actor->id,
+                'type' => 'ingested',
+                'content' => "Incident ingested from {$incident->source}.",
+                'metadata' => [
+                    'source' => $incident->source,
+                    'external_id' => $incident->external_id,
+                ],
+            ]);
+
+            $this->alertRoutingService->route('incident_created', $incident);
+
+            return [$incident, true];
         });
     }
 
@@ -163,6 +210,10 @@ class IncidentService
                     'tag_ids' => $currentTagIds,
                 ],
             ]);
+
+            if (array_key_exists('status', $changes) && $incident->status === 'escalated') {
+                $this->alertRoutingService->route('incident_escalated', $incident);
+            }
         });
     }
 

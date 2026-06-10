@@ -113,3 +113,33 @@ viewer@fgl.com
 - Rejected users are logged out and shown a contact-support message.
 - Successful login regenerates the session ID and redirects to `/dashboard`.
 - Session lifetime is 120 minutes of inactivity.
+
+## Mock Webhook Ingestion
+
+Configure `INCIDENT_WEBHOOK_TOKEN` in `docker/envs/app.env`, then send:
+
+```bash
+curl -X POST http://localhost:8000/api/webhooks/incidents \
+  -H 'Content-Type: application/json' \
+  -H 'X-Webhook-Token: fgl-webhook-demo-secret' \
+  -d '{
+    "external_id": "MON-1042",
+    "source": "monitoring",
+    "title": "Checkout API unavailable",
+    "description": "Health checks failed five times.",
+    "severity": "critical",
+    "sla_deadline": "2026-06-11 12:00:00"
+  }'
+```
+
+`source` and `external_id` make delivery idempotent. Repeating the same request returns the existing incident.
+
+## Alert Routing
+
+In-app alerts are routed from seeded database rules:
+
+- Critical incident creation routes to admins, support engineers, and the assigned user.
+- Escalation routes to super admins, admins, and the assigned user.
+- SLA breach routes to admins and the assigned user.
+
+The dashboard also displays simulated seven-day uptime metrics for Checkout API, Customer Portal, and Billing Worker.

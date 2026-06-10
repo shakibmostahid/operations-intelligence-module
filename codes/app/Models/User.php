@@ -49,6 +49,11 @@ class User extends Authenticatable
         return $this->hasMany(IncidentActivity::class);
     }
 
+    public function alerts(): HasMany
+    {
+        return $this->hasMany(Alert::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

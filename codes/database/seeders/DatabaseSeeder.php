@@ -19,6 +19,9 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             TagSeeder::class,
             IncidentSeeder::class,
+            AlertRuleSeeder::class,
+            SystemHealthCheckSeeder::class,
+            AlertSeeder::class,
         ]);
     }
 }

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\DashboardService;
+use App\Services\AlertRoutingService;
 use App\Services\IncidentService;
+use App\Services\SystemHealthService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +19,8 @@ class DashboardController extends Controller
     public function __construct(
         private readonly DashboardService $dashboardService,
         private readonly IncidentService $incidentService,
+        private readonly AlertRoutingService $alertRoutingService,
+        private readonly SystemHealthService $systemHealthService,
     ) {
     }
 
@@ -31,12 +35,15 @@ class DashboardController extends Controller
         }
 
         [$from, $to] = $this->dateRange($request, $timeframe);
+        $this->alertRoutingService->routeCurrentSlaBreaches();
 
         return view('app', [
             'page' => 'dashboard',
             'props' => [
                 'user' => $this->authenticatedUser($user),
                 'analytics' => $this->dashboardService->analytics($from, $to),
+                'alerts' => $this->alertRoutingService->alertsFor($user),
+                'systemHealth' => $this->systemHealthService->dashboard(),
                 'selfAssignedIncidents' => $this->incidentService->selfAssignedIncidents($user),
                 'slaBreaches' => $this->incidentService->unresolvedBreaches(),
                 'timeframe' => $timeframe,

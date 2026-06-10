@@ -11,6 +11,14 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    alerts: {
+        type: Object,
+        required: true,
+    },
+    systemHealth: {
+        type: Object,
+        required: true,
+    },
     selfAssignedIncidents: {
         type: Object,
         required: true,
@@ -112,6 +120,25 @@ const trendLabels = computed(() => {
 
     return [trend[0], trend[Math.floor((trend.length - 1) / 2)], trend[trend.length - 1]];
 });
+const uptimeTrendPoints = computed(() => props.systemHealth.trend
+    .map((item, index) => {
+        const denominator = Math.max(props.systemHealth.trend.length - 1, 1);
+        const x = props.systemHealth.trend.length === 1 ? 50 : (index / denominator) * 100;
+        const y = 36 - (item.uptime / 100) * 30;
+        return `${x},${y}`;
+    })
+    .join(' '));
+const uptimeClass = (uptime) => {
+    if (uptime >= 99) {
+        return 'text-[#526d23]';
+    }
+
+    if (uptime >= 95) {
+        return 'text-[#8a5b12]';
+    }
+
+    return 'text-[#9e2f2a]';
+};
 const slaPages = computed(() => {
     const current = slaResults.value.current_page;
     const last = slaResults.value.last_page;
@@ -284,6 +311,57 @@ const loadTrend = async () => {
                         {{ analytics.status.find((item) => item.label === 'escalated')?.count || 0 }}
                         <span class="text-base text-[#b9883c] transition-transform group-hover:translate-x-1">→</span>
                     </a>
+                </div>
+            </section>
+
+            <section class="mb-6 bg-white">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#e3e7e9] px-5 py-4">
+                    <div>
+                        <p class="text-sm font-semibold">System availability</p>
+                        <p class="mt-1 text-xs text-[#667079]">Simulated health checks across the last {{ systemHealth.period_days }} days.</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs uppercase text-[#667079]">Overall uptime</p>
+                        <p class="mt-1 text-2xl font-semibold" :class="uptimeClass(systemHealth.overall_uptime)">{{ systemHealth.overall_uptime }}%</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-px bg-[#e3e7e9] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+                    <div class="space-y-5 bg-white p-5">
+                        <div v-for="system in systemHealth.systems" :key="system.name">
+                            <div class="mb-2 flex items-center justify-between gap-4 text-sm">
+                                <span>
+                                    <strong>{{ system.name }}</strong>
+                                    <span class="ml-2 text-xs text-[#899298]">{{ system.average_response_ms }} ms</span>
+                                </span>
+                                <strong :class="uptimeClass(system.uptime)">{{ system.uptime }}%</strong>
+                            </div>
+                            <div class="h-3 bg-[#edf0f1]">
+                                <div
+                                    class="h-full"
+                                    :class="system.uptime >= 99 ? 'bg-[#78a83c]' : system.uptime >= 95 ? 'bg-[#d99a2b]' : 'bg-[#c84b45]'"
+                                    :style="{ width: `${system.uptime}%` }"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5">
+                        <div class="mb-3 flex items-center justify-between">
+                            <p class="text-sm font-semibold">Daily uptime trend</p>
+                            <span class="text-xs text-[#667079]">Target 99%</span>
+                        </div>
+                        <div class="h-[190px]">
+                            <svg class="size-full overflow-visible" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Daily system uptime trend">
+                                <line x1="0" y1="6.3" x2="100" y2="6.3" stroke="#d99a2b" stroke-width="0.5" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"></line>
+                                <line v-for="line in [6, 16, 26, 36]" :key="line" x1="0" :y1="line" x2="100" :y2="line" stroke="#e3e7e9" stroke-width="0.25"></line>
+                                <polyline :points="uptimeTrendPoints" fill="none" stroke="#297069" stroke-width="1.4" vector-effect="non-scaling-stroke"></polyline>
+                            </svg>
+                        </div>
+                        <div class="mt-2 flex justify-between text-xs text-[#667079]">
+                            <span v-for="point in systemHealth.trend" :key="point.date">{{ point.label }}</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -563,6 +641,34 @@ const loadTrend = async () => {
                 <div v-else class="px-5 py-10 text-center text-sm text-[#527a75]">
                     No unresolved incidents are assigned to you.
                 </div>
+            </section>
+
+            <section class="mb-6 border border-[#cfd7dc] bg-white">
+                <div class="flex items-center justify-between border-b border-[#e3e7e9] px-5 py-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-semibold">Routed alerts</p>
+                            <span class="bg-[#172027] px-2 py-0.5 text-xs font-semibold text-white">{{ alerts.unread }} unread</span>
+                        </div>
+                        <p class="mt-1 text-xs text-[#667079]">Alerts routed by severity, escalation, assignment, and SLA state.</p>
+                    </div>
+                </div>
+                <div v-if="alerts.items.length > 0" class="divide-y divide-[#e3e7e9]">
+                    <a
+                        v-for="alert in alerts.items"
+                        :key="alert.id"
+                        :href="`/incidents/${alert.incident.id}`"
+                        class="grid gap-2 px-5 py-4 hover:bg-[#f7f8f9] sm:grid-cols-[minmax(0,1fr)_auto]"
+                        :class="alert.read ? '' : 'border-l-4 border-l-[#d99a2b]'"
+                    >
+                        <span>
+                            <span class="block text-sm font-semibold">{{ alert.message }}</span>
+                            <span class="mt-1 block text-xs text-[#667079]">#{{ alert.incident.id }} · {{ label(alert.incident.status) }}</span>
+                        </span>
+                        <span class="text-xs text-[#899298]">{{ alert.created_at }}</span>
+                    </a>
+                </div>
+                <div v-else class="px-5 py-10 text-center text-sm text-[#667079]">No routed alerts.</div>
             </section>
 
             <section class="border border-[#e7aaa6] border-l-4 border-l-[#b53c36] bg-white">

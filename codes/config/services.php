@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'incident_webhook' => [
+        'token' => env('INCIDENT_WEBHOOK_TOKEN'),
+    ],
+
 ];
