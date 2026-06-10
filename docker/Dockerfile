@@ -11,6 +11,7 @@ RUN apt-get update \
         git \
         libicu-dev \
         libzip-dev \
+        tzdata \
         unzip \
         zip \
     && docker-php-ext-install \

@@ -133,6 +133,7 @@ class IncidentController extends Controller
             'activities' => fn ($query) => $query->with('user:id,name')->latest(),
         ]);
         $user = $request->user()->load('role');
+        $canEditIncident = $this->incidentService->canEditIncident($user, $incident);
 
         return view('app', [
             'page' => 'incident-detail',
@@ -153,8 +154,9 @@ class IncidentController extends Controller
                         'created_at' => $activity->created_at?->format('M j, Y g:i A'),
                     ])->values()->all(),
                 ],
-                'canModify' => $user->role->role !== 'viewer',
-                'users' => $this->incidentService->assignableUsers(),
+                'canEditIncident' => $canEditIncident,
+                'canChangeStatus' => $this->incidentService->canChangeStatus($user, $incident),
+                'canComment' => $this->incidentService->canComment($user),
                 'tags' => $this->incidentService->tags(),
                 'severities' => Incident::SEVERITIES,
                 'statuses' => Incident::STATUSES,
@@ -166,14 +168,12 @@ class IncidentController extends Controller
 
     public function update(Request $request, Incident $incident): RedirectResponse
     {
-        $assignableUserIds = collect($this->incidentService->assignableUsers())->pluck('id')->all();
-
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
             'severity' => ['required', Rule::in(Incident::SEVERITIES)],
             'status' => ['required', Rule::in(Incident::STATUSES)],
-            'assigned_to' => ['nullable', 'integer', Rule::in($assignableUserIds)],
+            'escalation_reason' => ['nullable', 'string', 'max:2000'],
             'sla_deadline' => ['nullable', 'date'],
             'rca_note' => ['nullable', 'string', 'max:5000'],
             'tag_ids' => ['nullable', 'array'],

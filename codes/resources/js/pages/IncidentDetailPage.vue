@@ -1,11 +1,13 @@
 <script setup>
+import { ref } from 'vue';
 import AppHeader from '../components/AppHeader.vue';
 
 const props = defineProps({
     user: { type: Object, required: true },
     incident: { type: Object, required: true },
-    canModify: { type: Boolean, default: false },
-    users: { type: Array, default: () => [] },
+    canEditIncident: { type: Boolean, default: false },
+    canChangeStatus: { type: Boolean, default: false },
+    canComment: { type: Boolean, default: false },
     tags: { type: Array, default: () => [] },
     severities: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
@@ -14,6 +16,7 @@ const props = defineProps({
 });
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+const selectedStatus = ref(props.incident.status);
 const label = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 const selectedTags = props.incident.tags.map((tag) => String(tag.id));
 const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
@@ -31,7 +34,7 @@ const durationClass = {
         <main class="mx-auto max-w-[1300px] px-5 py-8 sm:px-8">
             <div v-if="success" class="mb-6 border border-[#9fc55a] bg-[#f7ffe8] px-4 py-3 text-sm text-[#526d23]">{{ success }}</div>
             <div v-if="Object.keys(errors).length > 0" class="mb-6 border border-[#e7aaa6] bg-[#fff5f4] px-4 py-3 text-sm text-[#9e2f2a]">
-                Please review the highlighted incident fields and try again.
+                {{ errors.incident?.[0] || 'Please review the highlighted incident fields and try again.' }}
             </div>
             <div class="mb-7 flex flex-wrap items-start justify-between gap-4 border-b border-[#dce1e4] pb-5">
                 <div>
@@ -59,7 +62,7 @@ const durationClass = {
                         </div>
                     </section>
 
-                    <section v-if="canModify" class="bg-white p-6">
+                    <section v-if="canComment" class="bg-white p-6">
                         <h2 class="text-sm font-semibold">Add comment</h2>
                         <form :action="`/incidents/${incident.id}/comments`" method="POST" class="mt-4">
                             <input type="hidden" name="_token" :value="csrfToken">
@@ -89,7 +92,7 @@ const durationClass = {
                 </div>
 
                 <aside>
-                    <form v-if="canModify" :action="`/incidents/${incident.id}`" method="POST" class="bg-white p-6">
+                    <form v-if="canEditIncident" :action="`/incidents/${incident.id}`" method="POST" class="bg-white p-6">
                         <input type="hidden" name="_token" :value="csrfToken">
                         <input type="hidden" name="_method" value="PATCH">
                         <h2 class="text-sm font-semibold">Incident controls</h2>
@@ -107,10 +110,32 @@ const durationClass = {
                             </div>
                             <div>
                                 <label for="status" class="mb-2 block text-sm font-medium">Status</label>
-                                <select id="status" name="status" class="h-11 w-full border border-[#cbd1d5] bg-white px-3 text-sm">
-                                    <option v-for="status in statuses" :key="status" :value="status" :selected="incident.status === status">{{ label(status) }}</option>
+                                <select
+                                    v-if="canChangeStatus"
+                                    id="status"
+                                    v-model="selectedStatus"
+                                    name="status"
+                                    class="h-11 w-full border border-[#cbd1d5] bg-white px-3 text-sm"
+                                >
+                                    <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
                                 </select>
+                                <div v-else class="flex h-11 items-center border border-[#dce1e4] bg-[#f7f8f9] px-3 text-sm text-[#667079]">
+                                    {{ label(incident.status) }}
+                                </div>
+                                <input v-if="!canChangeStatus" type="hidden" name="status" :value="incident.status">
                                 <p v-if="errors.status" class="mt-2 text-xs text-[#b53c36]">{{ errors.status[0] }}</p>
+                            </div>
+                            <div v-if="canChangeStatus && selectedStatus === 'escalated' && incident.status !== 'escalated'">
+                                <label for="escalation_reason" class="mb-2 block text-sm font-medium">Escalation reason</label>
+                                <textarea
+                                    id="escalation_reason"
+                                    name="escalation_reason"
+                                    rows="3"
+                                    required
+                                    placeholder="Why does this incident need escalation?"
+                                    class="w-full border border-[#cbd1d5] px-3 py-3 text-sm"
+                                ></textarea>
+                                <p v-if="errors.escalation_reason" class="mt-2 text-xs text-[#b53c36]">{{ errors.escalation_reason[0] }}</p>
                             </div>
                             <div>
                                 <label for="severity" class="mb-2 block text-sm font-medium">Severity</label>
@@ -120,12 +145,10 @@ const durationClass = {
                                 <p v-if="errors.severity" class="mt-2 text-xs text-[#b53c36]">{{ errors.severity[0] }}</p>
                             </div>
                             <div>
-                                <label for="assigned_to" class="mb-2 block text-sm font-medium">Assigned user</label>
-                                <select id="assigned_to" name="assigned_to" class="h-11 w-full border border-[#cbd1d5] bg-white px-3 text-sm">
-                                    <option value="">Unassigned</option>
-                                    <option v-for="assignedUser in users" :key="assignedUser.id" :value="assignedUser.id" :selected="String(incident.assigned_to || '') === String(assignedUser.id)">{{ assignedUser.name }}</option>
-                                </select>
-                                <p v-if="errors.assigned_to" class="mt-2 text-xs text-[#b53c36]">{{ errors.assigned_to[0] }}</p>
+                                <p class="mb-2 text-sm font-medium">Assigned user</p>
+                                <div class="flex h-11 items-center border border-[#dce1e4] bg-[#f7f8f9] px-3 text-sm text-[#667079]">
+                                    {{ incident.assignee || 'Unassigned' }}
+                                </div>
                             </div>
                             <div>
                                 <label for="sla_deadline" class="mb-2 block text-sm font-medium">SLA deadline</label>
@@ -153,6 +176,9 @@ const durationClass = {
 
                     <section v-else class="bg-white p-6">
                         <h2 class="text-sm font-semibold">Incident details</h2>
+                        <p v-if="incident.status === 'resolved'" class="mt-3 border border-[#9fc55a] bg-[#f7ffe8] px-3 py-2 text-xs text-[#526d23]">
+                            This incident is resolved. Details are locked, but comments remain available.
+                        </p>
                         <dl class="mt-5 space-y-4 text-sm">
                             <div><dt class="text-xs text-[#899298]">Assigned user</dt><dd class="mt-1">{{ incident.assignee || 'Unassigned' }}</dd></div>
                             <div><dt class="text-xs text-[#899298]">SLA deadline</dt><dd class="mt-1">{{ incident.sla_deadline || 'Not set' }}</dd></div>

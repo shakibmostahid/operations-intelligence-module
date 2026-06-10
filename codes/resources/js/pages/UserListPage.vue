@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import AppHeader from '../components/AppHeader.vue';
 
 const props = defineProps({
@@ -19,9 +19,35 @@ const props = defineProps({
         type: Number,
         default: 10,
     },
+    search: {
+        type: String,
+        default: '',
+    },
 });
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+const searchTerm = ref(props.search);
+let searchTimer;
+
+watch(searchTerm, (value) => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => {
+        const url = new URL(window.location.href);
+        const normalizedSearch = value.trim();
+
+        if (normalizedSearch) {
+            url.searchParams.set('search', normalizedSearch);
+        } else {
+            url.searchParams.delete('search');
+        }
+
+        url.searchParams.delete('page');
+        window.location.assign(`${url.pathname}${url.search}`);
+    }, 350);
+});
+
+onBeforeUnmount(() => window.clearTimeout(searchTimer));
+
 const roleLabel = (role) => role.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 const visiblePages = computed(() => {
     const start = Math.max(1, props.users.current_page - 2);
@@ -58,24 +84,36 @@ const pageUrl = (page) => {
                 </a>
             </div>
 
-            <div class="mb-3 flex items-center justify-between gap-4">
+            <div class="mb-3 flex flex-wrap items-end justify-between gap-4">
                 <p class="text-sm text-[#667079]">
                     Showing {{ users.from || 0 }} to {{ users.to || 0 }} of {{ users.total }} users
                 </p>
-                <form action="/users" method="GET" class="flex items-center gap-2 text-sm">
-                    <label for="per_page" class="text-[#667079]">Rows</label>
-                    <select
-                        id="per_page"
-                        name="per_page"
-                        :value="perPage"
-                        class="h-9 border border-[#cbd1d5] bg-white px-2 outline-none focus:border-[#297069]"
-                        onchange="this.form.submit()"
-                    >
-                        <option :value="10">10</option>
-                        <option :value="25">25</option>
-                        <option :value="50">50</option>
-                    </select>
-                </form>
+                <div class="flex flex-wrap items-end gap-3">
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold text-[#667079]">Search by name</span>
+                        <input
+                            v-model="searchTerm"
+                            type="search"
+                            placeholder="Enter user name"
+                            class="h-9 w-64 border border-[#cbd1d5] bg-white px-3 text-sm outline-none focus:border-[#297069]"
+                        >
+                    </label>
+                    <form action="/users" method="GET" class="flex items-center gap-2 text-sm">
+                        <input v-if="search" type="hidden" name="search" :value="search">
+                        <label for="per_page" class="text-[#667079]">Rows</label>
+                        <select
+                            id="per_page"
+                            name="per_page"
+                            :value="perPage"
+                            class="h-9 border border-[#cbd1d5] bg-white px-2 outline-none focus:border-[#297069]"
+                            onchange="this.form.submit()"
+                        >
+                            <option :value="10">10</option>
+                            <option :value="25">25</option>
+                            <option :value="50">50</option>
+                        </select>
+                    </form>
+                </div>
             </div>
 
             <div class="overflow-x-auto border border-[#dce1e4] bg-white">

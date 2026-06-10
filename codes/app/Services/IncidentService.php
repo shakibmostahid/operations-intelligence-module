@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class IncidentService
 {
@@ -155,7 +156,28 @@ class IncidentService
     {
         $this->authorizeModification($actor);
 
-        DB::transaction(function () use ($actor, $incident, $data): void {
+        if ($incident->status === 'resolved') {
+            throw ValidationException::withMessages([
+                'incident' => 'Resolved incidents cannot be changed. You may still add comments.',
+            ]);
+        }
+
+        $nextStatus = $data['status'] ?? $incident->status;
+        $statusChanged = $nextStatus !== $incident->status;
+        $escalationReason = trim((string) ($data['escalation_reason'] ?? ''));
+        unset($data['assigned_to'], $data['escalation_reason']);
+
+        if ($statusChanged && ! $this->canChangeStatus($actor, $incident)) {
+            throw new AuthorizationException('Only the incident creator, assigned user, or super admin can change its status.');
+        }
+
+        if ($statusChanged && $nextStatus === 'escalated' && $escalationReason === '') {
+            throw ValidationException::withMessages([
+                'escalation_reason' => 'An escalation reason is required.',
+            ]);
+        }
+
+        DB::transaction(function () use ($actor, $incident, $data, $escalationReason): void {
             $tagIds = $data['tag_ids'] ?? [];
             unset($data['tag_ids']);
             $previousTagIds = $incident->tags()->pluck('tags.id')->sort()->values()->all();
@@ -195,11 +217,25 @@ class IncidentService
             }
 
             [$type, $content] = match (true) {
-                array_key_exists('status', $changes) => ['status_changed', 'Incident status changed.'],
-                array_key_exists('assigned_to', $changes) => ['assigned', 'Assigned user changed.'],
+                array_key_exists('status', $changes) && $incident->status === 'escalated' => [
+                    'escalated',
+                    'Incident escalated.',
+                ],
+                array_key_exists('status', $changes) => [
+                    'status_changed',
+                    'Incident status changed from '
+                        .$this->statusLabel((string) $changes['status']['from'])
+                        .' to '
+                        .$this->statusLabel((string) $changes['status']['to'])
+                        .'.',
+                ],
                 $changes === [] => ['tags_updated', 'Incident tags updated.'],
                 default => ['updated', 'Incident details updated.'],
             };
+
+            if ($type === 'escalated') {
+                $content = "Incident escalated: {$escalationReason}";
+            }
 
             $incident->activities()->create([
                 'user_id' => $actor->id,
@@ -208,6 +244,7 @@ class IncidentService
                 'metadata' => [
                     'changes' => $changes,
                     'tag_ids' => $currentTagIds,
+                    'escalation_reason' => $type === 'escalated' ? $escalationReason : null,
                 ],
             ]);
 
@@ -226,6 +263,33 @@ class IncidentService
             'type' => 'comment',
             'content' => $content,
         ]);
+    }
+
+    public function canEditIncident(User $actor, Incident $incident): bool
+    {
+        $actor->loadMissing('role');
+
+        return $actor->role->role !== 'viewer' && $incident->status !== 'resolved';
+    }
+
+    public function canComment(User $actor): bool
+    {
+        $actor->loadMissing('role');
+
+        return $actor->role->role !== 'viewer';
+    }
+
+    public function canChangeStatus(User $actor, Incident $incident): bool
+    {
+        $actor->loadMissing('role');
+
+        return $actor->role->role !== 'viewer'
+            && $incident->status !== 'resolved'
+            && (
+                $actor->role->role === 'super_admin'
+                || $incident->created_by === $actor->id
+                || $incident->assigned_to === $actor->id
+            );
     }
 
     public function unresolvedBreaches(int $perPage = 2): LengthAwarePaginator
@@ -361,5 +425,10 @@ class IncidentService
     private function normalise(mixed $value): mixed
     {
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d H:i:s') : $value;
+    }
+
+    private function statusLabel(string $status): string
+    {
+        return ucfirst(str_replace('_', ' ', $status));
     }
 }

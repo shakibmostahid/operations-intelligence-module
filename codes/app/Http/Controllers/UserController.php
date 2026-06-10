@@ -18,8 +18,12 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
         $actor = $request->user()->load('role');
         $perPage = $request->integer('per_page', 10);
+        $search = trim($validated['search'] ?? '');
 
         if (! in_array($perPage, [10, 25, 50], true)) {
             $perPage = 10;
@@ -29,8 +33,9 @@ class UserController extends Controller
             'page' => 'user-list',
             'props' => [
                 'user' => $this->authenticatedUser($actor),
-                'users' => $this->userService->paginatedUsers($actor, $perPage),
+                'users' => $this->userService->paginatedUsers($actor, $perPage, $search),
                 'perPage' => $perPage,
+                'search' => $search,
                 'success' => session('success'),
             ],
         ]);

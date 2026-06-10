@@ -12,12 +12,17 @@ use Illuminate\Support\Str;
 
 class UserService
 {
-    public function paginatedUsers(User $actor, int $perPage = 15): LengthAwarePaginator
+    public function paginatedUsers(
+        User $actor,
+        int $perPage = 15,
+        ?string $search = null,
+    ): LengthAwarePaginator
     {
         $actor->loadMissing('role');
 
         return User::query()
             ->with(['role:id,role', 'creator:id,name'])
+            ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%"))
             ->orderBy('name')
             ->paginate($perPage)
             ->withQueryString()

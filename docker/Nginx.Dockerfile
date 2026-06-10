@@ -14,6 +14,8 @@ RUN rm -f public/hot public/fonts-manifest.dev.json \
 
 FROM nginx:1.27-alpine
 
+RUN apk add --no-cache tzdata
+
 COPY docker/configs/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/entrypoints/nginx-entrypoint.sh /usr/local/bin/app-nginx-entrypoint
 COPY --from=assets /app/public /var/www/html/public

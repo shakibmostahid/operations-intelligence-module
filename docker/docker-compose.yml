@@ -9,6 +9,8 @@ services:
     working_dir: /var/www/html
     env_file:
       - ${APP_ENV_FILE:-./envs/app.env}
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
     depends_on:
       mysql:
         condition: service_healthy
@@ -28,6 +30,8 @@ services:
     depends_on:
       app:
         condition: service_started
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
     # env_file:
     #   - ${NGINX_ENV_FILE:-./envs/nginx.env}
     ports:
@@ -52,6 +56,9 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     env_file:
       - ${MYSQL_ENV_FILE:-./envs/mysql.env}
+    environment:
+      TZ: ${TZ:-Asia/Dhaka}
+    command: ["--default-time-zone=+06:00"]
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
