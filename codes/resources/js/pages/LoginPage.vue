@@ -94,7 +94,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             <div class="max-w-xl">
                 <p class="mb-5 text-sm font-semibold text-[#c8f169]">Clarity under pressure</p>
                 <h2 class="text-4xl font-semibold leading-tight">
-                    Keep ownership, urgency, and SLA risk visible.
+                    Keep assignments, urgency, and SLA risk visible.
                 </h2>
                 <div class="mt-10 grid grid-cols-3 border-y border-white/15 py-6">
                     <div>

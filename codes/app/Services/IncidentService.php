@@ -7,6 +7,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,31 @@ class IncidentService
     /**
      * @param  array<string, mixed>  $filters
      */
-    public function paginatedIncidents(array $filters, int $perPage = 15): LengthAwarePaginator
+    public function paginatedIncidents(
+        array $filters,
+        int $perPage = 15,
+        ?int $currentUserId = null,
+    ): LengthAwarePaginator
+    {
+        return $this->filteredQuery($filters, $currentUserId)
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Incident $incident): array => $this->summary($incident));
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, Incident>
+     */
+    public function filteredIncidents(array $filters, ?int $currentUserId = null): Collection
+    {
+        return $this->filteredQuery($filters, $currentUserId)->get();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function filteredQuery(array $filters, ?int $currentUserId): Builder
     {
         return Incident::query()
             ->with(['assignee:id,name', 'creator:id,name', 'tags:id,name,color'])
@@ -27,17 +52,23 @@ class IncidentService
             })
             ->when($filters['severity'] ?? null, fn (Builder $query, string $severity) => $query->where('severity', $severity))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when($filters['assigned_to'] ?? null, fn (Builder $query, int $userId) => $query->where('assigned_to', $userId))
+            ->when($filters['assigned_to'] ?? null, function (Builder $query, int|string $assignedTo) use ($currentUserId): void {
+                $query->where('assigned_to', $assignedTo === 'self' ? $currentUserId : $assignedTo);
+            })
             ->when($filters['tag_id'] ?? null, function (Builder $query, int $tagId): void {
                 $query->whereHas('tags', fn (Builder $query) => $query->where('tags.id', $tagId));
             })
             ->when($filters['sla'] ?? null, fn (Builder $query, string $sla) => $this->applySlaFilter($query, $sla))
-            ->orderByRaw("FIELD(severity, 'critical', 'high', 'medium', 'low')")
-            ->orderByRaw("CASE WHEN status = 'resolved' THEN 1 ELSE 0 END")
-            ->orderBy('sla_deadline')
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(fn (Incident $incident): array => $this->summary($incident));
+            ->when($filters['date_from'] ?? null, fn (Builder $query, string $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $date) => $query->whereDate('created_at', '<=', $date))
+            ->when(
+                ($filters['sort'] ?? null) === 'id',
+                fn (Builder $query) => $query->orderBy('id', $filters['direction'] ?? 'asc'),
+                fn (Builder $query) => $query
+                    ->orderByRaw("FIELD(severity, 'critical', 'high', 'medium', 'low')")
+                    ->orderByRaw("CASE WHEN status = 'resolved' THEN 1 ELSE 0 END")
+                    ->orderBy('sla_deadline'),
+            );
     }
 
     /**
@@ -118,7 +149,7 @@ class IncidentService
 
             [$type, $content] = match (true) {
                 array_key_exists('status', $changes) => ['status_changed', 'Incident status changed.'],
-                array_key_exists('assigned_to', $changes) => ['assigned', 'Incident owner changed.'],
+                array_key_exists('assigned_to', $changes) => ['assigned', 'Assigned user changed.'],
                 $changes === [] => ['tags_updated', 'Incident tags updated.'],
                 default => ['updated', 'Incident details updated.'],
             };
@@ -162,6 +193,29 @@ class IncidentService
             ]);
     }
 
+    /**
+     * @return array{items: array<int, array<string, mixed>>, total: int}
+     */
+    public function selfAssignedIncidents(User $user, int $limit = 5): array
+    {
+        $query = Incident::query()
+            ->with(['assignee:id,name', 'creator:id,name', 'tags:id,name,color'])
+            ->where('assigned_to', $user->id)
+            ->where('status', '!=', 'resolved')
+            ->whereNull('resolved_at');
+
+        return [
+            'total' => (clone $query)->count(),
+            'items' => $query
+            ->orderByRaw("FIELD(severity, 'critical', 'high', 'medium', 'low')")
+            ->orderBy('sla_deadline')
+            ->limit($limit)
+            ->get()
+            ->map(fn (Incident $incident): array => $this->summary($incident))
+            ->all(),
+        ];
+    }
+
     public function slaState(Incident $incident): string
     {
         if ($incident->status === 'resolved') {
@@ -184,6 +238,14 @@ class IncidentService
      */
     public function summary(Incident $incident): array
     {
+        $durationState = match (true) {
+            $incident->resolved_at !== null => 'resolved',
+            $this->slaState($incident) === 'breached' => 'breached',
+            default => 'running',
+        };
+        $durationEnd = $incident->resolved_at ?? now();
+        $duration = $incident->created_at?->diffForHumans($durationEnd, true);
+
         return [
             'id' => $incident->id,
             'title' => $incident->title,
@@ -195,6 +257,8 @@ class IncidentService
             'sla_deadline' => $incident->sla_deadline?->format('M j, Y g:i A'),
             'sla_state' => $this->slaState($incident),
             'resolved_at' => $incident->resolved_at?->format('M j, Y g:i A'),
+            'duration' => $duration,
+            'duration_state' => $durationState,
             'tags' => $incident->tags->map->only(['id', 'name', 'color'])->values()->all(),
             'created_at' => $incident->created_at?->format('M j, Y g:i A'),
         ];

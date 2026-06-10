@@ -55,10 +55,10 @@ const oldTagIds = Array.isArray(props.old.tag_ids) ? props.old.tag_ids.map(Strin
                     </div>
 
                     <div>
-                        <label for="assigned_to" class="mb-2 block text-sm font-medium">Assign owner</label>
+                        <label for="assigned_to" class="mb-2 block text-sm font-medium">Assigned user</label>
                         <select id="assigned_to" name="assigned_to" class="h-11 w-full border border-[#cbd1d5] bg-white px-3 text-sm outline-none focus:border-[#297069]">
                             <option value="">Unassigned</option>
-                            <option v-for="owner in users" :key="owner.id" :value="owner.id" :selected="String(old.assigned_to || '') === String(owner.id)">{{ owner.name }}</option>
+                            <option v-for="assignedUser in users" :key="assignedUser.id" :value="assignedUser.id" :selected="String(old.assigned_to || '') === String(assignedUser.id)">{{ assignedUser.name }}</option>
                         </select>
                         <p v-if="errors.assigned_to" class="mt-2 text-sm text-[#b53c36]">{{ errors.assigned_to[0] }}</p>
                     </div>

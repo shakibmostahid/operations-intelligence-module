@@ -17,6 +17,11 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 const label = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 const selectedTags = props.incident.tags.map((tag) => String(tag.id));
 const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
+const durationClass = {
+    resolved: 'bg-[#eef8e1] text-[#526d23]',
+    running: 'bg-[#e8f3fb] text-[#246183]',
+    breached: 'bg-[#feeceb] text-[#9e2f2a]',
+};
 </script>
 
 <template>
@@ -34,9 +39,13 @@ const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
                     <h1 class="max-w-4xl text-2xl font-semibold">{{ incident.title }}</h1>
                     <p class="mt-2 text-sm text-[#667079]">Created by {{ incident.creator }} on {{ incident.created_at }}</p>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap justify-end gap-2">
+                    <a :href="`/incidents/${incident.id}/export.pdf`" class="border border-[#297069] bg-white px-3 py-2 text-xs font-semibold text-[#297069] hover:bg-[#e8f5f2]">Export PDF</a>
                     <span class="bg-[#feeceb] px-3 py-2 text-xs font-semibold uppercase">{{ label(incident.severity) }}</span>
                     <span class="bg-[#eef2f3] px-3 py-2 text-xs font-semibold uppercase">{{ label(incident.status) }}</span>
+                    <span class="px-3 py-2 text-xs font-semibold" :class="durationClass[incident.duration_state]">
+                        {{ incident.duration_state === 'resolved' ? 'Resolved in' : 'Running' }} {{ incident.duration }}
+                    </span>
                 </div>
             </div>
 
@@ -111,10 +120,10 @@ const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
                                 <p v-if="errors.severity" class="mt-2 text-xs text-[#b53c36]">{{ errors.severity[0] }}</p>
                             </div>
                             <div>
-                                <label for="assigned_to" class="mb-2 block text-sm font-medium">Owner</label>
+                                <label for="assigned_to" class="mb-2 block text-sm font-medium">Assigned user</label>
                                 <select id="assigned_to" name="assigned_to" class="h-11 w-full border border-[#cbd1d5] bg-white px-3 text-sm">
                                     <option value="">Unassigned</option>
-                                    <option v-for="owner in users" :key="owner.id" :value="owner.id" :selected="String(incident.assigned_to || '') === String(owner.id)">{{ owner.name }}</option>
+                                    <option v-for="assignedUser in users" :key="assignedUser.id" :value="assignedUser.id" :selected="String(incident.assigned_to || '') === String(assignedUser.id)">{{ assignedUser.name }}</option>
                                 </select>
                                 <p v-if="errors.assigned_to" class="mt-2 text-xs text-[#b53c36]">{{ errors.assigned_to[0] }}</p>
                             </div>
@@ -145,9 +154,10 @@ const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
                     <section v-else class="bg-white p-6">
                         <h2 class="text-sm font-semibold">Incident details</h2>
                         <dl class="mt-5 space-y-4 text-sm">
-                            <div><dt class="text-xs text-[#899298]">Owner</dt><dd class="mt-1">{{ incident.assignee || 'Unassigned' }}</dd></div>
+                            <div><dt class="text-xs text-[#899298]">Assigned user</dt><dd class="mt-1">{{ incident.assignee || 'Unassigned' }}</dd></div>
                             <div><dt class="text-xs text-[#899298]">SLA deadline</dt><dd class="mt-1">{{ incident.sla_deadline || 'Not set' }}</dd></div>
                             <div><dt class="text-xs text-[#899298]">SLA state</dt><dd class="mt-1">{{ label(incident.sla_state) }}</dd></div>
+                            <div><dt class="text-xs text-[#899298]">Duration</dt><dd class="mt-1">{{ incident.duration_state === 'resolved' ? 'Resolved in' : 'Running' }} {{ incident.duration }}</dd></div>
                             <div><dt class="text-xs text-[#899298]">Resolved</dt><dd class="mt-1">{{ incident.resolved_at || 'No' }}</dd></div>
                             <div v-if="incident.rca_note"><dt class="text-xs text-[#899298]">RCA note</dt><dd class="mt-1 whitespace-pre-line leading-6">{{ incident.rca_note }}</dd></div>
                         </dl>

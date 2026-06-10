@@ -27,10 +27,16 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
         Route::get('/dashboard/sla-breaches', [DashboardController::class, 'slaBreaches'])
             ->name('dashboard.sla-breaches');
+        Route::get('/dashboard/trend', [DashboardController::class, 'trend'])
+            ->name('dashboard.trend');
         Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
+        Route::get('/incidents/export.csv', [IncidentController::class, 'exportCsv'])
+            ->name('incidents.export.csv');
         Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incidents.create');
         Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
         Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
+        Route::get('/incidents/{incident}/export.pdf', [IncidentController::class, 'exportPdf'])
+            ->name('incidents.export.pdf');
         Route::patch('/incidents/{incident}', [IncidentController::class, 'update'])->name('incidents.update');
         Route::post('/incidents/{incident}/comments', [IncidentController::class, 'comment'])
             ->name('incidents.comments.store');

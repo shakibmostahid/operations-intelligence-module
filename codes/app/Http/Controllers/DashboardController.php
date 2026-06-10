@@ -37,6 +37,7 @@ class DashboardController extends Controller
             'props' => [
                 'user' => $this->authenticatedUser($user),
                 'analytics' => $this->dashboardService->analytics($from, $to),
+                'selfAssignedIncidents' => $this->incidentService->selfAssignedIncidents($user),
                 'slaBreaches' => $this->incidentService->unresolvedBreaches(),
                 'timeframe' => $timeframe,
                 'dateFrom' => $from?->toDateString(),
@@ -53,6 +54,20 @@ class DashboardController extends Controller
         ]);
 
         return response()->json($this->incidentService->unresolvedBreaches());
+    }
+
+    public function trend(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'timeframe' => ['required', 'in:today,7,30,90,all'],
+        ]);
+        $timeframe = $validated['timeframe'];
+        [$from, $to] = $this->dateRange($request, $timeframe);
+
+        return response()->json([
+            'trend' => $this->dashboardService->incidentTrend($from, $to),
+            'timeframe' => $timeframe,
+        ]);
     }
 
     /**

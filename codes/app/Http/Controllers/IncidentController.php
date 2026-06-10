@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Incident;
 use App\Models\User;
 use App\Services\IncidentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -18,21 +20,7 @@ class IncidentController extends Controller
 
     public function index(Request $request): View
     {
-        $filters = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-            'severity' => ['nullable', Rule::in(Incident::SEVERITIES)],
-            'status' => ['nullable', Rule::in(Incident::STATUSES)],
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-            'tag_id' => ['nullable', 'integer', 'exists:tags,id'],
-            'sla' => ['nullable', Rule::in(['healthy', 'at_risk', 'breached', 'resolved', 'not_set'])],
-            'per_page' => ['nullable', 'integer', Rule::in([10, 25, 50])],
-        ]);
-
-        foreach (['assigned_to', 'tag_id', 'per_page'] as $integerFilter) {
-            if (isset($filters[$integerFilter])) {
-                $filters[$integerFilter] = (int) $filters[$integerFilter];
-            }
-        }
+        $filters = $this->validatedListFilters($request);
 
         $perPage = (int) ($filters['per_page'] ?? 10);
 
@@ -40,8 +28,12 @@ class IncidentController extends Controller
             'page' => 'incident-list',
             'props' => [
                 'user' => $this->authenticatedUser($request->user()),
-                'incidents' => $this->incidentService->paginatedIncidents($filters, $perPage),
-                'filters' => $filters,
+                'incidents' => $this->incidentService->paginatedIncidents(
+                    $filters,
+                    $perPage,
+                    $request->user()->id,
+                ),
+                'filters' => (object) $filters,
                 'users' => $this->incidentService->assignableUsers(),
                 'tags' => $this->incidentService->tags(),
                 'severities' => Incident::SEVERITIES,
@@ -49,6 +41,62 @@ class IncidentController extends Controller
                 'success' => session('success'),
             ],
         ]);
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $filters = $this->validatedListFilters($request);
+        unset($filters['per_page']);
+
+        $incidents = $this->incidentService->filteredIncidents($filters, $request->user()->id);
+
+        return response()->streamDownload(function () use ($incidents): void {
+            $output = fopen('php://output', 'w');
+            fputcsv($output, [
+                'ID', 'Title', 'Description', 'Severity', 'Status', 'Assigned User',
+                'Created By', 'SLA Deadline', 'SLA State', 'Duration', 'Created At',
+                'Resolved At', 'RCA Note', 'Tags',
+            ], ',', '"', '');
+
+            foreach ($incidents as $incident) {
+                $summary = $this->incidentService->summary($incident);
+                fputcsv($output, [
+                    $incident->id,
+                    $incident->title,
+                    $incident->description,
+                    $incident->severity,
+                    $incident->status,
+                    $incident->assignee?->name,
+                    $incident->creator?->name,
+                    $summary['sla_deadline'],
+                    $summary['sla_state'],
+                    $summary['duration'],
+                    $summary['created_at'],
+                    $summary['resolved_at'],
+                    $incident->rca_note,
+                    $incident->tags->pluck('name')->implode(', '),
+                ], ',', '"', '');
+            }
+
+            fclose($output);
+        }, 'incidents-'.now()->format('Y-m-d-His').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function exportPdf(Incident $incident)
+    {
+        $incident->load([
+            'assignee:id,name,email',
+            'creator:id,name,email',
+            'tags:id,name,color',
+            'activities' => fn ($query) => $query->with('user:id,name,email')->oldest(),
+        ]);
+
+        return Pdf::loadView('exports.incident', [
+            'incident' => $incident,
+            'summary' => $this->incidentService->summary($incident),
+        ])->setPaper('a4')->download("incident-{$incident->id}.pdf");
     }
 
     public function create(Request $request): View
@@ -169,6 +217,43 @@ class IncidentController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedListFilters(Request $request): array
+    {
+        $assignableUserIds = collect($this->incidentService->assignableUsers())
+            ->pluck('id')
+            ->map(fn (int $id): string => (string) $id)
+            ->all();
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'severity' => ['nullable', Rule::in(Incident::SEVERITIES)],
+            'status' => ['nullable', Rule::in(Incident::STATUSES)],
+            'assigned_to' => ['nullable', Rule::in(['self', ...$assignableUserIds])],
+            'tag_id' => ['nullable', 'integer', 'exists:tags,id'],
+            'sla' => ['nullable', Rule::in(['healthy', 'at_risk', 'breached', 'resolved', 'not_set'])],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d'],
+            'sort' => ['nullable', Rule::in(['id'])],
+            'direction' => ['nullable', Rule::in(['asc', 'desc'])],
+            'per_page' => ['nullable', 'integer', Rule::in([10, 25, 50])],
+        ]);
+
+        foreach (['tag_id', 'per_page'] as $integerFilter) {
+            if (isset($filters[$integerFilter])) {
+                $filters[$integerFilter] = (int) $filters[$integerFilter];
+            }
+        }
+
+        if (isset($filters['assigned_to']) && $filters['assigned_to'] !== 'self') {
+            $filters['assigned_to'] = (int) $filters['assigned_to'];
+        }
+
+        return $filters;
     }
 
     /**
