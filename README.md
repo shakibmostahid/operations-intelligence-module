@@ -30,6 +30,7 @@ It addresses fragmented operational reporting by providing a shared incident que
 - MySQL 8.4
 - Docker Compose
 - PHPUnit
+- Playwright
 
 ## Requirements
 
@@ -326,11 +327,31 @@ docker compose exec app php artisan migrate:fresh --seed
 docker compose exec app php artisan optimize:clear
 
 # Run tests
-docker compose exec app php artisan test
+docker compose exec app ./vendor/bin/phpunit
 
 # Build frontend assets
 docker compose exec app npm run build
 ```
+
+## Tests
+
+Run the PHPUnit unit and feature suite:
+
+```bash
+cd docker
+docker compose exec app ./vendor/bin/phpunit
+```
+
+The backend suite covers authentication behavior, incident status authorization, backward status changes, escalation reason validation, resolved-incident locking, and mock AI summary generation.
+
+Run the Playwright browser smoke tests against the Docker application:
+
+```bash
+cd docker
+docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-code-from playwright playwright
+```
+
+The E2E Compose file includes the base and development Compose files automatically. The Playwright suite verifies protected-route redirects, seeded super-admin login, dashboard access, incident navigation, and asynchronous AI summary generation. The first run downloads the official Playwright Docker image.
 
 ## Timezone
 

@@ -1,0 +1,18 @@
+include:
+  - docker-compose.yml
+  - docker-compose.dev.yml
+
+services:
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
+    working_dir: /work
+    environment:
+      PLAYWRIGHT_BASE_URL: http://nginx
+    volumes:
+      - ../codes:/work
+    command: ["npm", "run", "test:e2e"]
+    depends_on:
+      nginx:
+        condition: service_healthy
+    networks:
+      app-network:
