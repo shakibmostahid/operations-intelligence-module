@@ -1,6 +1,6 @@
 # Incident & Operations Tracking
 
-## Summary
+## What I Built
 
 Incident & Operations Tracking is an operations intelligence module for teams that need one place to understand active incidents, ownership, urgency, SLA exposure, and response history.
 
@@ -39,11 +39,11 @@ It addresses fragmented operational reporting by providing a shared incident que
 - Available local ports:
   - `8000` for Nginx
   - `5173` for Vite development assets
-  - `3307` for MySQL host access
+  - `3306` for MySQL host access
 
 No host installation of PHP, Composer, Node.js, or MySQL is required.
 
-## Quick Start
+## How to Run
 
 Clone the public repository and enter the Docker project:
 
@@ -180,6 +180,17 @@ Incident status can be changed only by the incident creator, assigned user, or s
 - Deactivating a user removes their active database sessions.
 - Session lifetime is 120 minutes of inactivity.
 
+## Key User Flows
+
+1. Sign in with a seeded account. Users with temporary passwords must choose a new password before continuing.
+2. Review dashboard metrics, trends, system uptime, assigned work, routed alerts, and unresolved SLA breaches.
+3. Create an incident with severity, tags, assignment, description, and an optional SLA deadline.
+4. Search and filter the incident list by status, severity, assignee, tag, SLA state, and creation date.
+5. Open an incident to review its details, duration, SLA state, activity timeline, and generated operational summary.
+6. Authorized users can comment, move status forward or backward, escalate with a reason, add RCA notes, and resolve the incident.
+7. Administrators can create users and activate or deactivate accounts within their role permissions.
+8. Export the filtered incident list as CSV or an individual incident as PDF.
+
 ## Incident Workflow
 
 Incidents begin with `open` status and support:
@@ -228,7 +239,65 @@ codes/resources/mocks/ai-operational-summary.json
 
 No external AI API or API key is required.
 
-## External Services
+## Architecture Overview
+
+The application uses a conventional server-rendered Laravel structure with Vue pages mounted into a shared Blade entry point.
+
+```mermaid
+flowchart LR
+    User[Operations User] -->|HTTP| Nginx[Nginx]
+    Nginx -->|Static assets| Vue[Blade + Vue 3 UI]
+    Nginx -->|FastCGI| Laravel[Laravel Application]
+
+    Laravel --> Controllers[Controllers and Middleware]
+    Controllers --> Services[Domain Services]
+    Services --> Models[Eloquent Models]
+    Models --> MySQL[(MySQL)]
+
+    Services --> Summary[Local AI Summary Mock]
+    Services --> Alerts[Alert Routing]
+    Webhook[Mock Webhook Source] -->|Authenticated JSON| Laravel
+
+    MySQL --> Sessions[Database Sessions]
+    MySQL --> Operations[Incidents, Activities, Tags]
+    MySQL --> Monitoring[Alerts and Health Checks]
+```
+
+- **Nginx** receives browser requests, serves public assets, and forwards PHP requests to PHP-FPM.
+- **Laravel controllers** validate HTTP input and delegate operational behavior to service classes.
+- **Service classes** contain incident, dashboard, user, profile, alert-routing, system-health, and mock-summary business logic.
+- **Eloquent models** define the relational domain and persistence behavior.
+- **Vue 3 pages** provide the dashboard and form interactions while Laravel remains responsible for routing, authentication, validation, and authorization.
+- **MySQL** stores users, incidents, timelines, alerts, system checks, and database-backed sessions.
+- **Docker Compose** runs PHP-FPM, Nginx, MySQL, and the optional Playwright test container.
+
+Important service boundaries:
+
+```text
+IncidentService                  Incident lifecycle, filters, permissions, SLA state
+DashboardService                 Metrics, distributions, tag counts, and trends
+AlertRoutingService              Local rule matching and alert creation
+SystemHealthService              Simulated uptime aggregation
+UserService / ProfileService     Account and profile operations
+MockAiOperationalSummaryService  Deterministic local operational summaries
+```
+
+## Data Model Overview
+
+| Model | Purpose | Main relationships |
+| --- | --- | --- |
+| `Role` | Defines `super_admin`, `admin`, `support_engineer`, and `viewer` access levels | Has many users |
+| `User` | Authenticated operator with status and temporary-password state | Belongs to role; creates users/incidents; receives assignments and alerts |
+| `Incident` | Core operational record with severity, status, SLA deadline, resolution, source, and RCA | Belongs to creator and assignee; has activities and tags |
+| `IncidentActivity` | Timeline entry for creation, comments, status changes, assignment, escalation, and resolution | Belongs to incident and optional user |
+| `Tag` | Categorizes incidents for grouping and reporting | Many-to-many with incidents through `incident_tag` |
+| `AlertRule` | Configures local routing by event, severity, and recipient roles | Evaluated when operational events occur |
+| `Alert` | Database-backed routed notification | Belongs to incident, rule, and recipient user |
+| `SystemHealthCheck` | Simulated service status and response-time sample | Aggregated into uptime dashboard metrics |
+
+Laravel also uses `sessions` for database-backed sessions and `password_reset_tokens` from the standard authentication schema.
+
+## Local Alternatives
 
 The local project does not depend on any external API:
 
@@ -352,6 +421,35 @@ docker compose -f docker-compose.e2e.yml up --abort-on-container-exit --exit-cod
 ```
 
 The E2E Compose file includes the base and development Compose files automatically. The Playwright suite verifies protected-route redirects, seeded super-admin login, dashboard access, incident navigation, and asynchronous AI summary generation. The first run downloads the official Playwright Docker image.
+
+## Known Limitations
+
+- Alerts are stored and displayed in the application; there is no email, SMS, Slack, or push delivery.
+- AI summaries are deterministic mock responses rather than output from a language model.
+- System uptime data is seeded simulation data, not live monitoring telemetry.
+- Webhook authentication uses one shared token and does not include signatures, replay protection, or source-specific credentials.
+- Incident assignment is intentionally fixed after creation.
+- The application has no background queue, scheduler worker, Redis, or real-time updates.
+- Role permissions are implemented for the demonstrated workflows rather than through a complete policy/permission management system.
+- PHPUnit and Playwright cover critical paths, but the project does not attempt exhaustive browser or authorization coverage.
+
+## With More Time
+
+1. Add comment tagging and mentions to connect timeline discussions with users, teams, and incident context.
+2. Send activity notifications to relevant users by email.
+3. Expand health checks with detailed history and asynchronous collection.
+4. Move SLA-breach detection to a scheduled asynchronous process.
+5. Process alert routing and delivery asynchronously with retry and failure tracking.
+6. Replace the deterministic mock with a production-ready AI operational summary provider.
+7. Generate reports from API request logs and automatically create incidents when configurable failure thresholds are exceeded.
+8. Add a CI/CD pipeline for automated testing, frontend builds, image validation, and deployment.
+9. Add a secure password-reset workflow with expiring tokens and email delivery.
+
+## AI Tools Used
+
+OpenAI Codex was used as an implementation assistant for code generation, debugging, test creation, Docker configuration, and documentation drafting.
+
+AI-generated output was not accepted without review. Changes were checked against the existing architecture, inspected through diffs, syntax-checked, compiled with the production Vite build, and exercised through PHPUnit and Playwright. The runtime AI-style incident summary remains a deterministic local mock and does not call Codex or any external AI service.
 
 ## Timezone
 

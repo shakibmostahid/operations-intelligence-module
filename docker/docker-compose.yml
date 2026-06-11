@@ -32,8 +32,6 @@ services:
         condition: service_started
     environment:
       TZ: ${TZ:-Asia/Dhaka}
-    # env_file:
-    #   - ${NGINX_ENV_FILE:-./envs/nginx.env}
     ports:
       - "${NGINX_PORT:-8000}:80"
     volumes:
