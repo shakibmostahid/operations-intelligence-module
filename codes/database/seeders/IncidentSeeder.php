@@ -28,6 +28,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'escalated',
                 'assigned_to' => $support->id,
                 'created_by' => $admin->id,
+                'created_at' => $now->copy()->subHours(5),
                 'sla_deadline' => $now->copy()->subMinutes(35),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -45,6 +46,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'investigating',
                 'assigned_to' => $support->id,
                 'created_by' => $superAdmin->id,
+                'created_at' => $now->copy()->subHours(2),
                 'sla_deadline' => $now->copy()->addMinutes(40),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -61,6 +63,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'open',
                 'assigned_to' => null,
                 'created_by' => $admin->id,
+                'created_at' => $now->copy()->subMinutes(35),
                 'sla_deadline' => $now->copy()->addHours(4),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -76,6 +79,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'investigating',
                 'assigned_to' => $support->id,
                 'created_by' => $admin->id,
+                'created_at' => $now->copy()->subHours(3),
                 'sla_deadline' => $now->copy()->addMinutes(15),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -92,6 +96,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'open',
                 'assigned_to' => $support->id,
                 'created_by' => $admin->id,
+                'created_at' => $now->copy()->subHours(1),
                 'sla_deadline' => $now->copy()->addHours(2),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -108,6 +113,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'open',
                 'assigned_to' => null,
                 'created_by' => $support->id,
+                'created_at' => $now->copy()->subDays(2),
                 'sla_deadline' => $now->copy()->addDay(),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -123,8 +129,9 @@ class IncidentSeeder extends Seeder
                 'status' => 'resolved',
                 'assigned_to' => $support->id,
                 'created_by' => $admin->id,
-                'sla_deadline' => $now->copy()->subHours(3),
-                'resolved_at' => $now->copy()->subHours(4),
+                'created_at' => $now->copy()->subDays(1)->subHours(2),
+                'sla_deadline' => $now->copy()->subDay()->addHours(2),
+                'resolved_at' => $now->copy()->subDay()->addMinutes(45),
                 'rca_note' => 'A retry worker did not persist the delivery acknowledgement before retrying. The acknowledgement is now written atomically.',
                 'tags' => ['API', 'Customer Impact'],
                 'activities' => [
@@ -139,8 +146,9 @@ class IncidentSeeder extends Seeder
                 'status' => 'resolved',
                 'assigned_to' => $support->id,
                 'created_by' => $superAdmin->id,
-                'sla_deadline' => $now->copy()->subHours(6),
-                'resolved_at' => $now->copy()->subHours(7),
+                'created_at' => $now->copy()->subDays(3),
+                'sla_deadline' => $now->copy()->subDays(2)->subHours(20),
+                'resolved_at' => $now->copy()->subDays(2)->subHours(18),
                 'rca_note' => 'The aggregation task exhausted memory while processing an unusually large partition. Processing is now partitioned into smaller batches.',
                 'tags' => ['Database', 'Infrastructure'],
                 'activities' => [
@@ -155,6 +163,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'investigating',
                 'assigned_to' => $support->id,
                 'created_by' => $admin->id,
+                'created_at' => $now->copy()->subHours(7),
                 'sla_deadline' => $now->copy()->subMinutes(10),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -171,6 +180,7 @@ class IncidentSeeder extends Seeder
                 'status' => 'escalated',
                 'assigned_to' => $admin->id,
                 'created_by' => $support->id,
+                'created_at' => $now->copy()->subHours(6),
                 'sla_deadline' => $now->copy()->addHours(1),
                 'resolved_at' => null,
                 'rca_note' => null,
@@ -180,17 +190,90 @@ class IncidentSeeder extends Seeder
                     ['user' => $support, 'type' => 'escalated', 'content' => 'Escalated for remediation planning.', 'metadata' => ['from' => 'open', 'to' => 'escalated']],
                 ],
             ],
+            [
+                'title' => 'Internal knowledge base typo reported',
+                'description' => 'A documentation typo was reported and does not require an SLA commitment.',
+                'severity' => 'low',
+                'status' => 'open',
+                'assigned_to' => null,
+                'created_by' => $support->id,
+                'created_at' => $now->copy()->subDays(4),
+                'sla_deadline' => null,
+                'resolved_at' => null,
+                'rca_note' => null,
+                'tags' => ['Customer Impact'],
+                'activities' => [
+                    ['user' => $support, 'type' => 'created', 'content' => 'Incident created from an internal documentation report.'],
+                ],
+            ],
+            [
+                'title' => 'Search indexing worker stopped overnight',
+                'description' => 'Product updates are not appearing in search because an indexing worker stopped processing.',
+                'severity' => 'critical',
+                'status' => 'open',
+                'assigned_to' => $support->id,
+                'created_by' => $superAdmin->id,
+                'created_at' => $now->copy()->subDays(1)->subHours(8),
+                'sla_deadline' => $now->copy()->subDays(1)->subHours(2),
+                'resolved_at' => null,
+                'rca_note' => null,
+                'tags' => ['Infrastructure', 'Customer Impact'],
+                'activities' => [
+                    ['user' => $superAdmin, 'type' => 'created', 'content' => 'Incident created after the indexing freshness monitor failed.'],
+                    ['user' => $superAdmin, 'type' => 'assigned', 'content' => 'Assigned to Support Engineer.', 'metadata' => ['assigned_to' => $support->id]],
+                ],
+            ],
+            [
+                'title' => 'Scheduled report email delivery recovered',
+                'description' => 'Scheduled report emails were delayed briefly and recovered before the SLA deadline.',
+                'severity' => 'low',
+                'status' => 'resolved',
+                'assigned_to' => $support->id,
+                'created_by' => $admin->id,
+                'created_at' => $now->copy()->subDays(6)->subHours(2),
+                'sla_deadline' => $now->copy()->subDays(6)->addHours(2),
+                'resolved_at' => $now->copy()->subDays(6)->subMinutes(30),
+                'rca_note' => 'A temporary mail provider throttle delayed delivery. Backoff settings were adjusted and the queued messages were delivered.',
+                'tags' => ['Customer Impact', 'Infrastructure'],
+                'activities' => [
+                    ['user' => $admin, 'type' => 'created', 'content' => 'Incident created after scheduled report delivery slowed.'],
+                    ['user' => $support, 'type' => 'resolved', 'content' => 'Delivery recovered and the delayed queue was cleared.', 'metadata' => ['from' => 'investigating', 'to' => 'resolved']],
+                ],
+            ],
+            [
+                'title' => 'Billing reconciliation completed after SLA',
+                'description' => 'The daily billing reconciliation completed successfully, but only after the committed SLA window.',
+                'severity' => 'medium',
+                'status' => 'resolved',
+                'assigned_to' => $admin->id,
+                'created_by' => $superAdmin->id,
+                'created_at' => $now->copy()->subDays(9),
+                'sla_deadline' => $now->copy()->subDays(8)->subHours(20),
+                'resolved_at' => $now->copy()->subDays(8)->subHours(16),
+                'rca_note' => 'A large settlement batch exceeded the expected processing window. The reconciliation job now processes settlements in bounded chunks.',
+                'tags' => ['Billing', 'Database'],
+                'activities' => [
+                    ['user' => $superAdmin, 'type' => 'created', 'content' => 'Incident created when reconciliation exceeded its expected duration.'],
+                    ['user' => $admin, 'type' => 'resolved', 'content' => 'Reconciliation completed and processing was optimized.', 'metadata' => ['from' => 'investigating', 'to' => 'resolved']],
+                ],
+            ],
         ];
 
-        foreach ($incidents as $index => $data) {
+        foreach ($incidents as $data) {
             $tagNames = $data['tags'];
             $activities = $data['activities'];
-            unset($data['tags'], $data['activities']);
+            $createdAt = $data['created_at'];
+            unset($data['tags'], $data['activities'], $data['created_at']);
 
             $incident = Incident::query()->updateOrCreate(
                 ['title' => $data['title']],
                 $data,
             );
+
+            $incident->forceFill([
+                'created_at' => $createdAt,
+                'updated_at' => $data['resolved_at'] ?? $createdAt,
+            ])->save();
 
             $incident->tags()->sync(
                 collect($tagNames)->map(fn (string $name) => $tags->get($name)->id),
@@ -199,7 +282,12 @@ class IncidentSeeder extends Seeder
             $incident->activities()->delete();
 
             foreach ($activities as $activityIndex => $activity) {
-                $createdAt = $this->activityTime($now, $index, $activityIndex);
+                $activityCreatedAt = $this->activityTime(
+                    $createdAt,
+                    $data['resolved_at'],
+                    $activityIndex,
+                    count($activities),
+                );
 
                 $activityModel = $incident->activities()->make([
                     'user_id' => $activity['user']->id,
@@ -209,15 +297,23 @@ class IncidentSeeder extends Seeder
                 ]);
 
                 $activityModel->forceFill([
-                    'created_at' => $createdAt,
-                    'updated_at' => $createdAt,
+                    'created_at' => $activityCreatedAt,
+                    'updated_at' => $activityCreatedAt,
                 ])->save();
             }
         }
     }
 
-    private function activityTime(Carbon $now, int $incidentIndex, int $activityIndex): Carbon
-    {
-        return $now->copy()->subHours(30 - ($incidentIndex * 2))->addMinutes($activityIndex * 25);
+    private function activityTime(
+        Carbon $incidentCreatedAt,
+        ?Carbon $resolvedAt,
+        int $activityIndex,
+        int $activityCount,
+    ): Carbon {
+        if ($resolvedAt !== null && $activityIndex === $activityCount - 1) {
+            return $resolvedAt->copy();
+        }
+
+        return $incidentCreatedAt->copy()->addMinutes($activityIndex * 30);
     }
 }
