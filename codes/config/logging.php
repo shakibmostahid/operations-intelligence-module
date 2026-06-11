@@ -19,7 +19,7 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => env('LOG_CHANNEL', 'console'),
 
     /*
     |--------------------------------------------------------------------------
@@ -55,8 +55,18 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env('LOG_STACK', 'console')),
             'ignore_exceptions' => false,
+        ],
+
+        'console' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'processors' => [PsrLogMessageProcessor::class],
         ],
 
         'single' => [
@@ -75,10 +85,12 @@ return [
         ],
 
         'requests' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/requests.log'),
+            'driver' => 'monolog',
             'level' => env('LOG_REQUEST_LEVEL', 'info'),
-            'days' => env('LOG_REQUEST_DAYS', 14),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
             'formatter' => JsonFormatter::class,
             'formatter_with' => [
                 'appendNewline' => true,
@@ -107,14 +119,9 @@ return [
         ],
 
         'stderr' => [
-            'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
-            'handler' => StreamHandler::class,
-            'handler_with' => [
-                'stream' => 'php://stderr',
-            ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
+            'driver' => 'stack',
+            'channels' => ['console'],
+            'ignore_exceptions' => false,
         ],
 
         'syslog' => [

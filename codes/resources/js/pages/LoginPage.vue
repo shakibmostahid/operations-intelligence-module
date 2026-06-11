@@ -18,10 +18,10 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         <section class="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10">
             <div class="w-full max-w-[420px]">
                 <a href="/" class="mb-14 inline-flex items-center gap-3 text-[#172027]">
-                    <span class="grid size-10 place-items-center bg-[#c8f169] text-sm font-bold">FGL</span>
+                    <span class="grid size-10 place-items-center bg-[#c8f169] text-sm font-bold">IO</span>
                     <span>
-                        <strong class="block text-lg leading-5">FGL Incident &amp; Operations Tracking</strong>
-                        <span class="text-xs text-[#667079]">Operations intelligence</span>
+                        <strong class="block text-lg leading-5">Incident &amp; Operations Tracking</strong>
+                        <span class="text-xs text-[#667079]">Operational response workspace</span>
                     </span>
                 </a>
 
@@ -29,7 +29,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                     <p class="mb-2 text-sm font-semibold text-[#297069]">Operations workspace</p>
                     <h1 class="text-3xl font-semibold">Welcome back</h1>
                     <p class="mt-3 text-sm leading-6 text-[#667079]">
-                        Sign in to review incidents, SLA risk, and operational activity.
+                        Sign in to monitor active incidents, manage response work, and review SLA exposure.
                     </p>
                 </div>
 
@@ -87,32 +87,32 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         <aside class="relative hidden overflow-hidden bg-[#172027] p-12 text-white lg:flex lg:flex-col lg:justify-between">
             <div class="absolute inset-x-0 top-0 h-1 bg-[#c8f169]"></div>
             <div class="flex items-center justify-between text-xs uppercase text-[#a9b2b7]">
-                <span>Operational control</span>
-                <span>Live workspace</span>
+                <span>Incident command</span>
+                <span>Shared visibility</span>
             </div>
 
             <div class="max-w-xl">
-                <p class="mb-5 text-sm font-semibold text-[#c8f169]">Clarity under pressure</p>
+                <p class="mb-5 text-sm font-semibold text-[#c8f169]">From signal to resolution</p>
                 <h2 class="text-4xl font-semibold leading-tight">
-                    Keep assignments, urgency, and SLA risk visible.
+                    Coordinate ownership, escalation, and recovery from one operational view.
                 </h2>
                 <div class="mt-10 grid grid-cols-3 border-y border-white/15 py-6">
                     <div>
                         <span class="block text-2xl font-semibold">01</span>
-                        <span class="mt-1 block text-xs text-[#a9b2b7]">Shared queue</span>
+                        <span class="mt-1 block text-xs text-[#a9b2b7]">SLA monitoring</span>
                     </div>
                     <div class="border-x border-white/15 px-6">
                         <span class="block text-2xl font-semibold">02</span>
-                        <span class="mt-1 block text-xs text-[#a9b2b7]">SLA signals</span>
+                        <span class="mt-1 block text-xs text-[#a9b2b7]">Response timeline</span>
                     </div>
                     <div class="pl-6">
                         <span class="block text-2xl font-semibold">03</span>
-                        <span class="mt-1 block text-xs text-[#a9b2b7]">Clear history</span>
+                        <span class="mt-1 block text-xs text-[#a9b2b7]">AI summaries</span>
                     </div>
                 </div>
             </div>
 
-            <p class="text-xs text-[#7f8a91]">FGL Incident &amp; Operations Tracking</p>
+            <p class="text-xs text-[#7f8a91]">Incident &amp; Operations Tracking</p>
         </aside>
     </main>
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import AppHeader from '../components/AppHeader.vue';
 
 const props = defineProps({
@@ -17,6 +17,9 @@ const props = defineProps({
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 const selectedStatus = ref(props.incident.status);
+const operationalSummary = ref(null);
+const summaryLoading = ref(true);
+const summaryError = ref('');
 const label = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 const selectedTags = props.incident.tags.map((tag) => String(tag.id));
 const activityTitle = (type) => type === 'comment' ? 'Comment' : label(type);
@@ -25,6 +28,36 @@ const durationClass = {
     running: 'bg-[#e8f3fb] text-[#246183]',
     breached: 'bg-[#feeceb] text-[#9e2f2a]',
 };
+
+const generateOperationalSummary = async () => {
+    summaryLoading.value = true;
+    summaryError.value = '';
+    operationalSummary.value = null;
+
+    try {
+        const [response] = await Promise.all([
+            fetch(`/incidents/${props.incident.id}/operational-summary`, {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            }),
+            new Promise((resolve) => window.setTimeout(resolve, 900)),
+        ]);
+
+        if (!response.ok) {
+            throw new Error('Unable to generate the operational summary.');
+        }
+
+        operationalSummary.value = await response.json();
+    } catch (error) {
+        summaryError.value = error.message;
+    } finally {
+        summaryLoading.value = false;
+    }
+};
+
+onMounted(generateOperationalSummary);
 </script>
 
 <template>
@@ -36,6 +69,53 @@ const durationClass = {
             <div v-if="Object.keys(errors).length > 0" class="mb-6 border border-[#e7aaa6] bg-[#fff5f4] px-4 py-3 text-sm text-[#9e2f2a]">
                 {{ errors.incident?.[0] || 'Please review the highlighted incident fields and try again.' }}
             </div>
+
+            <section class="mb-7 border-l-4 border-[#297069] bg-white p-6">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase text-[#297069]">AI operational summary</p>
+                        <h2 v-if="operationalSummary" class="mt-2 text-lg font-semibold">{{ operationalSummary.headline }}</h2>
+                        <p v-else-if="summaryLoading" class="mt-2 text-sm font-medium text-[#566169]">Generating operational analysis...</p>
+                        <p v-else class="mt-2 text-sm font-medium text-[#9e2f2a]">Summary generation failed</p>
+                    </div>
+                    <span class="border border-[#cbd1d5] bg-[#f7f8f9] px-2 py-1 text-xs text-[#667079]">
+                        Mock AI
+                    </span>
+                </div>
+
+                <div v-if="summaryLoading" class="mt-5 animate-pulse space-y-3" role="status" aria-live="polite">
+                    <div class="flex items-center gap-3 text-sm text-[#667079]">
+                        <span class="size-4 animate-spin rounded-full border-2 border-[#b9d1cd] border-t-[#297069]"></span>
+                        <span>Reviewing severity, SLA, ownership, and recent activity</span>
+                    </div>
+                    <div class="h-3 w-full bg-[#e8edef]"></div>
+                    <div class="h-3 w-5/6 bg-[#e8edef]"></div>
+                    <div class="h-3 w-2/3 bg-[#e8edef]"></div>
+                </div>
+
+                <template v-else-if="operationalSummary">
+                    <p class="mt-4 max-w-5xl text-sm leading-6 text-[#566169]">{{ operationalSummary.summary }}</p>
+                    <div class="mt-5 border-t border-[#e3e7e9] pt-4">
+                        <p class="text-xs font-semibold uppercase text-[#667079]">Suggested next action</p>
+                        <p class="mt-2 text-sm font-medium leading-6">{{ operationalSummary.next_action }}</p>
+                    </div>
+                    <p class="mt-4 text-xs text-[#899298]">
+                        {{ operationalSummary.provider }} · {{ operationalSummary.model }} · {{ operationalSummary.generated_at }}
+                    </p>
+                </template>
+
+                <div v-else class="mt-5">
+                    <p class="text-sm text-[#9e2f2a]">{{ summaryError }}</p>
+                    <button
+                        type="button"
+                        class="mt-3 h-9 border border-[#297069] px-3 text-sm font-semibold text-[#297069] hover:bg-[#e8f5f2]"
+                        @click="generateOperationalSummary"
+                    >
+                        Try again
+                    </button>
+                </div>
+            </section>
+
             <div class="mb-7 flex flex-wrap items-start justify-between gap-4 border-b border-[#dce1e4] pb-5">
                 <div>
                     <a href="/incidents" class="mb-3 inline-block text-sm text-[#667079] hover:text-[#172027]">Back to incidents</a>

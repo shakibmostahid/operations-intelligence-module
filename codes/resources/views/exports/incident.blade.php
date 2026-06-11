@@ -23,7 +23,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="brand">FGL Incident &amp; Operations Tracking</div>
+        <div class="brand">Incident &amp; Operations Tracking</div>
         <h1>Incident #{{ $incident->id }}: {{ $incident->title }}</h1>
         <div class="muted">Exported {{ now()->format('M j, Y g:i A') }}</div>
     </div>

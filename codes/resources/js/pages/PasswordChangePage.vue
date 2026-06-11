@@ -24,7 +24,7 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                         Replace your temporary password before accessing the workspace.
                     </p>
                 </div>
-                <span class="grid size-10 shrink-0 place-items-center bg-[#c8f169] text-xs font-bold">FGL</span>
+                <span class="grid size-10 shrink-0 place-items-center bg-[#c8f169] text-xs font-bold">IO</span>
             </div>
 
             <div class="mb-6 bg-[#f7f8f9] px-4 py-3 text-sm">

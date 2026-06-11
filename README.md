@@ -1,8 +1,23 @@
-# FGL Incident & Operations Tracking
+# Incident & Operations Tracking
 
 ## Summary
 
-An operations intelligence application for tracking incidents, operational activity, ownership, and SLA status. The current version includes Dockerized Laravel and Vue, session authentication, user roles, password changes, user creation, and an initial dashboard.
+Incident & Operations Tracking is an operations intelligence module for teams that need one place to understand active incidents, ownership, urgency, SLA exposure, and response history.
+
+It addresses fragmented operational reporting by providing a shared incident queue, dashboard metrics, role-based actions, escalation tracking, alert routing, and deterministic AI-style summaries without relying on external services.
+
+## Features
+
+- Operational dashboard with incident, SLA, uptime, tag, severity, status, and trend metrics
+- Incident creation, assignment, filtering, pagination, status changes, escalation, resolution, comments, and RCA notes
+- SLA health detection with breached and at-risk incident views
+- Immutable activity timeline for incident changes and comments
+- Role-based user management and incident permissions
+- Mock alert routing based on incident creation, escalation, and SLA breach events
+- Idempotent mock webhook ingestion
+- CSV incident-list export and PDF incident-detail export
+- Deterministic mock AI operational summary with a suggested next action
+- JSON request logging with request ID, user ID, IP address, user agent, status, and duration
 
 ## Technologies
 
@@ -10,29 +25,72 @@ An operations intelligence application for tracking incidents, operational activ
 - Laravel 13
 - Vue 3
 - Vite
-- Tailwind CSS
+- Tailwind CSS 4
 - Nginx
 - MySQL 8.4
 - Docker Compose
+- PHPUnit
 
 ## Requirements
 
 - Docker Desktop or Docker Engine
 - Docker Compose
-- Available ports: `8000`, `5173`, and `3307`
-
-## Prerequisites
+- Available local ports:
+  - `8000` for Nginx
+  - `5173` for Vite development assets
+  - `3307` for MySQL host access
 
 No host installation of PHP, Composer, Node.js, or MySQL is required.
 
-## Initial Setup
+## Quick Start
+
+Clone the public repository and enter the Docker project:
 
 ```bash
+git clone <your-public-repo-url>
+cd <repo>
 cd docker
+```
 
+Create the local environment files:
+
+```bash
 cp .env.example .env
 cp envs/app.env.example envs/app.env
 cp envs/mysql.env.example envs/mysql.env
+cp envs/nginx.env.example envs/nginx.env
+```
+
+Generate an application key and add the returned value to `envs/app.env`:
+
+```bash
+docker compose run --rm app php artisan key:generate --show
+```
+
+Start the complete application:
+
+```bash
+docker compose up --build
+```
+
+In another terminal, initialize the database:
+
+```bash
+cd <repo>/docker
+docker compose exec app php artisan migrate --seed
+```
+
+Open `http://localhost:8000`.
+
+## Initial Setup
+
+Run commands from the `docker/` directory:
+
+```bash
+cp .env.example .env
+cp envs/app.env.example envs/app.env
+cp envs/mysql.env.example envs/mysql.env
+cp envs/nginx.env.example envs/nginx.env
 ```
 
 Generate an application key:
@@ -41,87 +99,153 @@ Generate an application key:
 docker compose run --rm app php artisan key:generate --show
 ```
 
-Add the generated value to `docker/envs/app.env`:
+Place the generated key in `envs/app.env`:
 
 ```env
 APP_KEY=base64:generated-value
 ```
 
-Start the containers and initialize the database:
+Build and start the services:
 
 ```bash
 docker compose up -d --build
+```
+
+Create and seed the database:
+
+```bash
 docker compose exec app php artisan migrate --seed
 ```
 
-## How To Run
-
-Run commands from the `docker/` directory.
-
-```bash
-docker compose up -d
-```
-
-Open:
+Open the application at:
 
 ```text
 http://localhost:8000
 ```
 
-Stop the application:
+## Running The Project
+
+Start:
+
+```bash
+cd docker
+docker compose up -d
+```
+
+View service status and logs:
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+Stop:
 
 ```bash
 docker compose down
 ```
 
-## Project Structure
+Rebuild after Dockerfile or dependency changes:
 
-```text
-codes/              Laravel and Vue application
-docker/             Dockerfiles, Compose files, configs, and env files
-docs/ROADMAP.md     Implementation roadmap
+```bash
+docker compose up -d --build
 ```
 
-## Demo Login Credentials
+## Demo Accounts
 
-```text
-Email: super.admin@fgl.com
-Password: fgl@admin
-```
+| Role | Email | Password | Behavior |
+| --- | --- | --- | --- |
+| Super Admin | `super.admin@iot.com` | `incident@admin` | Ready to use |
+| Admin | `admin@iot.com` | `password` | Must change password |
+| Support Engineer | `support@iot.com` | `password` | Must change password |
+| Viewer | `viewer@iot.com` | `password` | Must change password |
 
-Other seeded users use the temporary password `password`:
+## Roles And Permissions
 
-```text
-admin@fgl.com
-support@fgl.com
-viewer@fgl.com
-```
+- `super_admin`: manages users and can change any active incident status.
+- `admin`: creates lower-role users and manages lower-role accounts.
+- `support_engineer`: works on incidents and comments.
+- `viewer`: read-only access to operational data.
 
-## User Role Types
+Incident status can be changed only by the incident creator, assigned user, or super admin. Assignment is fixed after creation. Escalation requires a reason. Resolved incidents are locked, while non-viewers may continue adding comments.
 
-- `super_admin`
-- `admin`
-- `support_engineer`
-- `viewer`
+## Authentication
 
-## Authentication Behavior
-
-- Authentication uses Laravel's web guard and database sessions.
-- Accounts must have `status=active`.
-- Accounts with `must_change_password=true` are redirected to change their temporary password.
-- Only `super_admin` and `admin` users can create users.
-- Rejected users are logged out and shown a contact-support message.
-- Successful login regenerates the session ID and redirects to `/dashboard`.
+- Laravel web authentication uses database-backed sessions.
+- Only active accounts may sign in.
+- Temporary-password users are redirected to the password-change page.
+- A new password cannot match the current password.
+- Successful login regenerates the session ID.
+- Deactivating a user removes their active database sessions.
 - Session lifetime is 120 minutes of inactivity.
 
-## Mock Webhook Ingestion
+## Incident Workflow
 
-Configure `INCIDENT_WEBHOOK_TOKEN` in `docker/envs/app.env`, then send:
+Incidents begin with `open` status and support:
+
+```text
+open
+investigating
+escalated
+resolved
+```
+
+Status changes may move forward or backward before resolution. Escalations create timeline activity and trigger matching alert rules. Resolution records the completion time and locks incident details.
+
+The incident list supports search and filtering by severity, status, assigned user, tag, SLA state, and creation date. It also supports ID sorting, selectable page sizes, CSV export, and direct navigation to incident details.
+
+## Dashboard
+
+The dashboard includes:
+
+- Total, critical, and escalated incident metrics
+- Severity or status distribution chart
+- Incident counts by tag
+- Created-versus-resolved trend chart
+- Simulated service uptime metrics
+- Current user’s unresolved assigned incidents
+- Paginated unresolved SLA breaches
+- Routed in-app alerts
+
+Dashboard metrics support predefined and custom date ranges.
+
+## Mock AI Summary
+
+Incident details request an operational summary from:
+
+```text
+GET /incidents/{incident}/operational-summary
+```
+
+The authenticated endpoint combines severity, status, SLA state, assignment, tags, and timeline activity. The page displays a generating animation before rendering the summary and suggested next action.
+
+Responses are deterministic and loaded from:
+
+```text
+codes/resources/mocks/ai-operational-summary.json
+```
+
+No external AI API or API key is required.
+
+## External Services
+
+The local project does not depend on any external API:
+
+- AI summaries use the local mock API and JSON response combinations.
+- Webhook ingestion is exposed as a local authenticated endpoint.
+- Alert routing creates local database-backed alerts.
+- Email uses Laravel's log mailer by default.
+
+These mocks and local alternatives allow the complete workflow to run without third-party accounts, credentials, or network services.
+
+## Mock Webhook
+
+Configure `INCIDENT_WEBHOOK_TOKEN` in `docker/envs/app.env`, then submit an incident:
 
 ```bash
 curl -X POST http://localhost:8000/api/webhooks/incidents \
   -H 'Content-Type: application/json' \
-  -H 'X-Webhook-Token: fgl-webhook-demo-secret' \
+  -H 'X-Webhook-Token: your-configured-token' \
   -d '{
     "external_id": "MON-1042",
     "source": "monitoring",
@@ -132,14 +256,86 @@ curl -X POST http://localhost:8000/api/webhooks/incidents \
   }'
 ```
 
-`source` and `external_id` make delivery idempotent. Repeating the same request returns the existing incident.
+The combination of `source` and `external_id` makes webhook delivery idempotent.
 
 ## Alert Routing
 
-In-app alerts are routed from seeded database rules:
+Seeded alert rules create in-app alerts for:
 
-- Critical incident creation routes to admins, support engineers, and the assigned user.
-- Escalation routes to super admins, admins, and the assigned user.
-- SLA breach routes to admins and the assigned user.
+- Critical incident creation
+- Incident escalation
+- SLA breach
 
-The dashboard also displays simulated seven-day uptime metrics for Checkout API, Customer Portal, and Billing Worker.
+Recipients are selected from configured roles and the incident’s assigned user.
+
+## Exports
+
+- Incident lists can be exported as CSV with current filters applied.
+- Individual incidents can be exported as PDF with details and timeline data.
+
+## Logging
+
+Application logs are written to the container console by default. HTTP request logs use JSON and include:
+
+- Request ID
+- Method, route, path, and response status
+- Authenticated user ID
+- IP address and user agent
+- Request and response sizes
+- Execution duration
+
+View live application and request logs with:
+
+```bash
+cd docker
+docker compose logs -f app
+```
+
+## Project Structure
+
+```text
+codes/
+  app/                 Controllers, middleware, models, and services
+  database/            Migrations, factories, and seeders
+  resources/js/        Vue pages and components
+  resources/mocks/     Mock AI response combinations
+  routes/              Web and API routes
+
+docker/
+  configs/             PHP and Nginx configuration
+  entrypoints/         Container startup scripts
+  envs/                Service environment files and examples
+  Dockerfile           PHP-FPM application image
+  Nginx.Dockerfile     Nginx and production asset image
+  docker-compose.yml   Base services
+  docker-compose.dev.yml Development overrides
+
+docs/ROADMAP.md        Original implementation roadmap
+```
+
+## Useful Commands
+
+```bash
+# Run migrations
+docker compose exec app php artisan migrate
+
+# Rebuild demo data
+docker compose exec app php artisan migrate:fresh --seed
+
+# Clear Laravel caches
+docker compose exec app php artisan optimize:clear
+
+# Run tests
+docker compose exec app php artisan test
+
+# Build frontend assets
+docker compose exec app npm run build
+```
+
+## Timezone
+
+The application, PHP runtime, Nginx, and MySQL are configured for Bangladesh time:
+
+```text
+Asia/Dhaka (UTC+06:00)
+```

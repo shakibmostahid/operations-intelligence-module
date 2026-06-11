@@ -1,0 +1,45 @@
+{
+    "provider": "Mock Operations AI",
+    "model": "operations-summary-v1",
+    "combinations": {
+        "critical.escalated.breached": {
+            "headline": "Immediate intervention required",
+            "assessment": "This critical incident is escalated and has breached its SLA. Customer or operational impact may continue until ownership and mitigation are confirmed.",
+            "next_action": "Confirm the active responder, document the current mitigation, and provide a time-bound stakeholder update."
+        },
+        "critical.investigating.at_risk": {
+            "headline": "Critical incident approaching SLA",
+            "assessment": "Investigation is active, but the remaining response window is limited. The incident needs a clear mitigation path before the SLA deadline.",
+            "next_action": "Validate the working hypothesis, assign a mitigation owner, and prepare escalation if progress stalls."
+        },
+        "high.investigating.breached": {
+            "headline": "Investigation is overdue",
+            "assessment": "This high-severity incident remains under investigation after its SLA deadline. Resolution risk is increasing without a documented recovery step.",
+            "next_action": "Record the latest finding, confirm the next diagnostic step, and escalate if no recovery path is available."
+        },
+        "high.escalated.at_risk": {
+            "headline": "Escalated incident needs a decision",
+            "assessment": "The incident is escalated and nearing its SLA deadline. Cross-team attention is present, but a concrete mitigation decision is still needed.",
+            "next_action": "Name the decision owner and capture the mitigation or rollback choice before the SLA expires."
+        },
+        "resolved": {
+            "headline": "Incident response completed",
+            "assessment": "The incident is resolved. The remaining operational value is in validating recovery and preserving useful root-cause context.",
+            "next_action": "Confirm service stability and complete the RCA note if follow-up learning is still missing."
+        },
+        "default": {
+            "headline": "Incident requires operational follow-up",
+            "assessment": "The incident is active and should continue through the normal response workflow with clear ownership and timely updates.",
+            "next_action": "Confirm ownership, record the latest progress, and review the SLA deadline."
+        }
+    },
+    "ownership": {
+        "assigned": "The incident is assigned to {{assignee}}.",
+        "unassigned": "No responder is currently assigned."
+    },
+    "activity": {
+        "none": "No operational updates have been recorded yet.",
+        "single": "One activity has been recorded in the timeline.",
+        "multiple": "{{activity_count}} activities are available in the timeline."
+    }
+}

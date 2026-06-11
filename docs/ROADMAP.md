@@ -1,6 +1,6 @@
-# FGL Incident & Operations Tracking Implementation Roadmap
+# Incident & Operations Tracking Implementation Roadmap
 
-FGL Incident & Operations Tracking is a small operations intelligence and SLA monitoring dashboard for a take-home test project. The goal is to build a complete but focused Laravel application where users can monitor incidents, assign owners, escalate and resolve issues, track SLA health, add comments, review activity history, and generate a deterministic local AI-style operational summary.
+Incident & Operations Tracking is a small operations intelligence and SLA monitoring dashboard for a take-home test project. The goal is to build a complete but focused Laravel application where users can monitor incidents, assign owners, escalate and resolve issues, track SLA health, add comments, review activity history, and generate a deterministic local AI-style operational summary.
 
 This roadmap is intentionally implementation-focused, but it does not include generated application code.
 
@@ -55,9 +55,9 @@ docker-compose.yml
   - `DB_CONNECTION=mysql`
   - `DB_HOST=mysql`
   - `DB_PORT=3306`
-  - `DB_DATABASE=fgl_operations`
-  - `DB_USERNAME=fgl`
-  - `DB_PASSWORD=fgl`
+  - `DB_DATABASE=operations_intelligence`
+  - `DB_USERNAME=operations_user`
+  - `DB_PASSWORD=change-me`
 - Verify the application can connect to MySQL from inside Docker.
 - Run Laravel's default migrations successfully before adding domain tables.
 - Document common database setup commands later in the README.

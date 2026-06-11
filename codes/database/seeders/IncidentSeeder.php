@@ -16,9 +16,9 @@ class IncidentSeeder extends Seeder
         $tags = Tag::query()->get()->keyBy('name');
         $now = now()->startOfMinute();
 
-        $admin = $users->get('admin@fgl.com');
-        $support = $users->get('support@fgl.com');
-        $superAdmin = $users->get('super.admin@fgl.com');
+        $admin = $users->get('admin@iot.com');
+        $support = $users->get('support@iot.com');
+        $superAdmin = $users->get('super.admin@iot.com');
 
         $incidents = [
             [

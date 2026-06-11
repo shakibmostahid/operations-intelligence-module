@@ -28,7 +28,7 @@ const initials = computed(() => props.user.name
         <div class="mx-auto flex min-h-16 max-w-[1440px] items-center justify-between gap-4 px-5 py-3 sm:px-8">
             <div class="flex min-w-0 items-center gap-7">
                 <a href="/dashboard" class="flex min-w-0 items-center gap-3">
-                    <span class="grid size-9 shrink-0 place-items-center bg-[#c8f169] text-xs font-bold">FGL</span>
+                    <span class="grid size-9 shrink-0 place-items-center bg-[#c8f169] text-xs font-bold">IO</span>
                     <strong class="hidden truncate text-sm lg:block">Incident &amp; Operations Tracking</strong>
                 </a>
 

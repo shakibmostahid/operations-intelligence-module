@@ -34,6 +34,8 @@ Route::middleware('auth')->group(function (): void {
             ->name('incidents.export.csv');
         Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incidents.create');
         Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
+        Route::get('/incidents/{incident}/operational-summary', [IncidentController::class, 'operationalSummary'])
+            ->name('incidents.operational-summary');
         Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
         Route::get('/incidents/{incident}/export.pdf', [IncidentController::class, 'exportPdf'])
             ->name('incidents.export.pdf');

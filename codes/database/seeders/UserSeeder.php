@@ -15,10 +15,10 @@ class UserSeeder extends Seeder
             ->keyBy('role');
 
         $superAdmin = User::query()->updateOrCreate(
-            ['email' => 'super.admin@fgl.com'],
+            ['email' => 'super.admin@iot.com'],
             [
                 'name' => 'Super Administrator',
-                'password' => 'fgl@admin',
+                'password' => 'incident@admin',
                 'must_change_password' => false,
                 'email_verified_at' => now(),
                 'role_id' => $roles->get('super_admin')->id,
@@ -30,17 +30,17 @@ class UserSeeder extends Seeder
         foreach ([
             [
                 'name' => 'Operations Administrator',
-                'email' => 'admin@fgl.com',
+                'email' => 'admin@iot.com',
                 'role' => 'admin',
             ],
             [
                 'name' => 'Support Engineer',
-                'email' => 'support@fgl.com',
+                'email' => 'support@iot.com',
                 'role' => 'support_engineer',
             ],
             [
                 'name' => 'Operations Viewer',
-                'email' => 'viewer@fgl.com',
+                'email' => 'viewer@iot.com',
                 'role' => 'viewer',
             ],
         ] as $user) {

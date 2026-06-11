@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Incident;
 use App\Models\User;
 use App\Services\IncidentService;
+use App\Services\MockAiOperationalSummaryService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Validation\Rule;
@@ -14,8 +16,10 @@ use Illuminate\View\View;
 
 class IncidentController extends Controller
 {
-    public function __construct(private readonly IncidentService $incidentService)
-    {
+    public function __construct(
+        private readonly IncidentService $incidentService,
+        private readonly MockAiOperationalSummaryService $operationalSummaryService,
+    ) {
     }
 
     public function index(Request $request): View
@@ -164,6 +168,22 @@ class IncidentController extends Controller
                 'success' => session('success'),
             ],
         ]);
+    }
+
+    public function operationalSummary(Incident $incident): JsonResponse
+    {
+        $incident->load([
+            'assignee:id,name',
+            'tags:id,name,color',
+            'activities:id,incident_id',
+        ]);
+
+        return response()
+            ->json($this->operationalSummaryService->generate(
+                $incident,
+                $this->incidentService->slaState($incident),
+            ))
+            ->header('Cache-Control', 'no-store');
     }
 
     public function update(Request $request, Incident $incident): RedirectResponse
