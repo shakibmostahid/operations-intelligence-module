@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
             TagSeeder::class,
             IncidentSeeder::class,
             AlertRuleSeeder::class,
-            SystemHealthCheckSeeder::class,
             AlertSeeder::class,
         ]);
     }

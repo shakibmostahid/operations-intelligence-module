@@ -1,6 +1,35 @@
 # Incident & Operations Tracking
 
-## What I Built
+## Table of Contents
+* [Summary](#summary)
+* [Features](#features)
+* [Technologies](#technologies)
+* [Requirements](#requirements)
+* [Project Structure](#project-structure)
+* [How to Run in Local Environment](#how-to-run-in-local-environment)
+* [Demo Accounts](#demo-accounts)
+* [Roles And Permissions](#roles-and-permissions)
+* [Authentication](#authentication)
+* [Key User Flows](#key-user-flows)
+* [Incident Workflow](#incident-workflow)
+* [Dashboard](#dashboard)
+* [Alert Routing](#alert-routing)
+* [Exports](#exports)
+* [Mock AI Summary](#mock-ai-summary)
+* [Architecture Overview](#architecture-overview)
+* [Data Model Overview](#data-model-overview)
+* [Local Alternatives](#local-alternatives)
+* [Mock Webhook](#mock-webhook)
+* [Logging](#logging)
+* [Useful Commands](#useful-commands)
+* [Tests](#tests)
+* [Known Limitations](#known-limitations)
+* [With More Time](#with-more-time)
+* [AI Tools Used](#ai-tools-used)
+
+---
+
+## Summary
 
 Incident & Operations Tracking is an operations intelligence module for teams that need one place to understand active incidents, ownership, urgency, SLA exposure, and response history.
 
@@ -43,55 +72,47 @@ It addresses fragmented operational reporting by providing a shared incident que
 
 No host installation of PHP, Composer, Node.js, or MySQL is required.
 
-## How to Run
+## Project Structure
+
+```text
+codes/
+  app/                 Controllers, middleware, models, and services
+  database/            Migrations, factories, and seeders
+  resources/js/        Vue pages and components
+  resources/mocks/     Mock AI response combinations
+  routes/              Web and API routes
+
+docker/
+  configs/             PHP and Nginx configuration
+  entrypoints/         Container startup scripts
+  envs/                Service environment files and examples
+  Dockerfile           PHP-FPM application image
+  Nginx.Dockerfile     Nginx and production asset image
+  docker-compose.yml   Base services
+  docker-compose.dev.yml Development overrides
+```
+
+## How to Run in Local Environment
 
 Clone the public repository and enter the Docker project:
 
 ```bash
-git clone <your-public-repo-url>
-cd <repo>
-cd docker
+git clone https://github.com/shakibmostahid/operations-intelligence-module.git
+cd operations-intelligence-module/docker
 ```
 
-Create the local environment files:
+Create the local environment files before build:
 
 ```bash
 cp .env.example .env
 cp envs/app.env.example envs/app.env
 cp envs/mysql.env.example envs/mysql.env
-cp envs/nginx.env.example envs/nginx.env
 ```
 
-Generate an application key and add the returned value to `envs/app.env`:
+Build the docker images
 
 ```bash
-docker compose run --rm app php artisan key:generate --show
-```
-
-Start the complete application:
-
-```bash
-docker compose up --build
-```
-
-In another terminal, initialize the database:
-
-```bash
-cd <repo>/docker
-docker compose exec app php artisan migrate --seed
-```
-
-Open `http://localhost:8000`.
-
-## Initial Setup
-
-Run commands from the `docker/` directory:
-
-```bash
-cp .env.example .env
-cp envs/app.env.example envs/app.env
-cp envs/mysql.env.example envs/mysql.env
-cp envs/nginx.env.example envs/nginx.env
+docker compose build app
 ```
 
 Generate an application key:
@@ -106,50 +127,21 @@ Place the generated key in `envs/app.env`:
 APP_KEY=base64:generated-value
 ```
 
-Build and start the services:
+Initialize the database with pre seed data:
 
 ```bash
-docker compose up -d --build
+docker compose run --rm app php artisan migrate --seed
 ```
 
-Create and seed the database:
-
+Start the application:
 ```bash
-docker compose exec app php artisan migrate --seed
+docker compose up -d app
 ```
 
 Open the application at:
 
 ```text
 http://localhost:8000
-```
-
-## Running The Project
-
-Start:
-
-```bash
-cd docker
-docker compose up -d
-```
-
-View service status and logs:
-
-```bash
-docker compose ps
-docker compose logs -f
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-Rebuild after Dockerfile or dependency changes:
-
-```bash
-docker compose up -d --build
 ```
 
 ## Demo Accounts
@@ -174,7 +166,7 @@ Incident status can be changed only by the incident creator, assigned user, or s
 
 - Laravel web authentication uses database-backed sessions.
 - Only active accounts may sign in.
-- Temporary-password users are redirected to the password-change page.
+- After creating an user temporary password will be set. Upon login, temporary-password users are redirected to the password-change page.
 - A new password cannot match the current password.
 - Successful login regenerates the session ID.
 - Deactivating a user removes their active database sessions.
@@ -220,8 +212,24 @@ The dashboard includes:
 - Routed in-app alerts
 - Deterministic daily operations summary
 - Live mock system probes refreshed without a page reload
+- Live System health data based on mock data.
 
 Dashboard metrics support predefined and custom date ranges.
+
+## Alert Routing
+
+Seeded alert rules create in-app alerts for:
+
+- Critical incident creation
+- Incident escalation
+- SLA breach
+
+Recipients are selected from configured roles and the incident’s assigned user.
+
+## Exports
+
+- Incident lists can be exported as CSV with current filters applied.
+- Individual incidents can be exported as PDF with details and timeline data.
 
 ## Mock AI Summary
 
@@ -238,8 +246,6 @@ Responses are deterministic and loaded from:
 ```text
 codes/resources/mocks/ai-operational-summary.json
 ```
-
-No external AI API or API key is required.
 
 ## Architecture Overview
 
@@ -273,17 +279,6 @@ flowchart LR
 - **MySQL** stores users, incidents, timelines, alerts, system checks, and database-backed sessions.
 - **Docker Compose** runs PHP-FPM, Nginx, MySQL, and the optional Playwright test container.
 
-Important service boundaries:
-
-```text
-IncidentService                  Incident lifecycle, filters, permissions, SLA state
-DashboardService                 Metrics, distributions, tag counts, and trends
-AlertRoutingService              Local rule matching and alert creation
-SystemHealthService              Simulated uptime aggregation
-UserService / ProfileService     Account and profile operations
-MockAiOperationalSummaryService  Deterministic local operational summaries
-```
-
 ## Data Model Overview
 
 | Model | Purpose | Main relationships |
@@ -295,9 +290,8 @@ MockAiOperationalSummaryService  Deterministic local operational summaries
 | `Tag` | Categorizes incidents for grouping and reporting | Many-to-many with incidents through `incident_tag` |
 | `AlertRule` | Configures local routing by event, severity, and recipient roles | Evaluated when operational events occur |
 | `Alert` | Database-backed routed notification | Belongs to incident, rule, and recipient user |
-| `SystemHealthCheck` | Simulated service status and response-time sample | Aggregated into uptime dashboard metrics |
 
-Laravel also uses `sessions` for database-backed sessions and `password_reset_tokens` from the standard authentication schema.
+Laravel also uses `sessions` for database-backed sessions.
 
 ## Local Alternatives
 
@@ -306,7 +300,6 @@ The local project does not depend on any external API:
 - AI summaries use the local mock API and JSON response combinations.
 - Webhook ingestion is exposed as a local authenticated endpoint.
 - Alert routing creates local database-backed alerts.
-- Email uses Laravel's log mailer by default.
 
 These mocks and local alternatives allow the complete workflow to run without third-party accounts, credentials, or network services.
 
@@ -330,21 +323,6 @@ curl -X POST http://localhost:8000/api/webhooks/incidents \
 
 The combination of `source` and `external_id` makes webhook delivery idempotent.
 
-## Alert Routing
-
-Seeded alert rules create in-app alerts for:
-
-- Critical incident creation
-- Incident escalation
-- SLA breach
-
-Recipients are selected from configured roles and the incident’s assigned user.
-
-## Exports
-
-- Incident lists can be exported as CSV with current filters applied.
-- Individual incidents can be exported as PDF with details and timeline data.
-
 ## Logging
 
 Application logs are written to the container console by default. HTTP request logs use JSON and include:
@@ -356,33 +334,17 @@ Application logs are written to the container console by default. HTTP request l
 - Request and response sizes
 - Execution duration
 
+Log Sample:
+
+```json
+{"message":"HTTP request completed","context":{"event":"http.request","request_id":"af92bc94-0d49-4b34-9894-30955cc0052d","method":"GET","path":"/dashboard","route":"dashboard","action":"App\\Http\\Controllers\\DashboardController","status":200,"duration_ms":201.72,"user_id":1,"ip_address":"ip","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36","referer":"localhost/incidents/9","content_type":null,"request_bytes":null,"response_bytes":null,"query_keys":[]},"level":200,"level_name":"INFO","channel":"production","datetime":"2026-06-13T00:33:47.132942+06:00","extra":{}}
+```
+
 View live application and request logs with:
 
 ```bash
 cd docker
 docker compose logs -f app
-```
-
-## Project Structure
-
-```text
-codes/
-  app/                 Controllers, middleware, models, and services
-  database/            Migrations, factories, and seeders
-  resources/js/        Vue pages and components
-  resources/mocks/     Mock AI response combinations
-  routes/              Web and API routes
-
-docker/
-  configs/             PHP and Nginx configuration
-  entrypoints/         Container startup scripts
-  envs/                Service environment files and examples
-  Dockerfile           PHP-FPM application image
-  Nginx.Dockerfile     Nginx and production asset image
-  docker-compose.yml   Base services
-  docker-compose.dev.yml Development overrides
-
-docs/ROADMAP.md        Original implementation roadmap
 ```
 
 ## Useful Commands
@@ -404,7 +366,7 @@ docker compose exec app ./vendor/bin/phpunit
 docker compose exec app npm run build
 ```
 
-## Tests
+## Run Tests
 
 Run the PHPUnit unit and feature suite:
 
@@ -435,7 +397,7 @@ The E2E Compose file includes the base and development Compose files automatical
 - Role permissions are implemented for the demonstrated workflows rather than through a complete policy/permission management system.
 - PHPUnit and Playwright cover critical paths, but the project does not attempt exhaustive browser or authorization coverage.
 
-## With More Time
+## Time Constrained Feature Backlog 
 
 1. Add comment tagging and mentions to connect timeline discussions with users, teams, and incident context.
 2. Send activity notifications to relevant users by email.
@@ -452,11 +414,3 @@ The E2E Compose file includes the base and development Compose files automatical
 OpenAI Codex was used as an implementation assistant for code generation, debugging, test creation, Docker configuration, and documentation drafting.
 
 AI-generated output was not accepted without review. Changes were checked against the existing architecture, inspected through diffs, syntax-checked, compiled with the production Vite build, and exercised through PHPUnit and Playwright. The runtime AI-style incident summary remains a deterministic local mock and does not call Codex or any external AI service.
-
-## Timezone
-
-The application, PHP runtime, Nginx, and MySQL are configured for Bangladesh time:
-
-```text
-Asia/Dhaka (UTC+06:00)
-```

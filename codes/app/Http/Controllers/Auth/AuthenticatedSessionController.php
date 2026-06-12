@@ -63,7 +63,9 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->to(route('login', absolute: false));
+        return redirect()
+            ->to(route('login', absolute: false))
+            ->withCookie(cookie()->forget('live_health_enabled'));
     }
 
     private function rejectLogin(Request $request, string $message): RedirectResponse

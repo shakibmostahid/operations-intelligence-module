@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\SystemHealthCheck;
+use Carbon\CarbonInterface;
 
 class SystemHealthService
 {
-    private const LIVE_RESPONSE_BASE = [
+    private const SYSTEMS = [
         'Checkout API' => 145,
         'Customer Portal' => 210,
         'Billing Worker' => 320,
@@ -18,51 +18,61 @@ class SystemHealthService
     public function dashboard(int $days = 7): array
     {
         $from = now()->subDays($days - 1)->startOfDay();
-        $checks = SystemHealthCheck::query()
-            ->where('checked_at', '>=', $from)
-            ->where('checked_at', '<=', now())
-            ->orderBy('checked_at')
-            ->get();
+        $samples = collect();
 
-        $systems = $checks->groupBy('system_name')->map(function ($systemChecks, string $name): array {
-            $total = $systemChecks->count();
-            $available = $systemChecks->where('status', '!=', 'down')->count();
-            $live = $this->liveProbe($name);
+        foreach (range(0, $days - 1) as $offset) {
+            $date = $from->copy()->addDays($offset);
+            $slots = $date->isToday()
+                ? max(1, min(48, intdiv(now()->hour * 60 + now()->minute, 30) + 1))
+                : 48;
+
+            foreach (self::SYSTEMS as $name => $baseResponseTime) {
+                foreach (range(0, $slots - 1) as $slot) {
+                    $samples->push($this->historicalProbe($name, $baseResponseTime, $date, $slot));
+                }
+            }
+        }
+
+        $systems = collect(self::SYSTEMS)->map(function (int $baseResponseTime, string $name) use ($samples): array {
+            $systemSamples = $samples->where('system_name', $name);
+            $total = $systemSamples->count();
+            $available = $systemSamples->where('status', '!=', 'down')->count();
+            $current = $this->liveProbe($name);
 
             return [
                 'name' => $name,
                 'uptime' => $total === 0 ? 0 : round(($available / $total) * 100, 2),
-                'average_response_ms' => (int) round($systemChecks->avg('response_time_ms') ?? 0),
-                'latest_status' => $live['status'],
-                'current_response_ms' => $live['response_time_ms'],
+                'average_response_ms' => (int) round($systemSamples->avg('response_time_ms') ?? $baseResponseTime),
+                'latest_status' => $current['status'],
+                'current_response_ms' => $current['response_time_ms'],
             ];
         })->values()->all();
         $liveUptime = $this->liveUptime($systems);
 
-        $trend = collect(range(0, $days - 1))->map(function (int $offset) use ($checks, $from, $liveUptime): array {
+        $trend = collect(range(0, $days - 1))->map(function (int $offset) use ($samples, $from, $liveUptime): array {
             $date = $from->copy()->addDays($offset);
-            $daily = $checks->filter(fn (SystemHealthCheck $check) => $check->checked_at->isSameDay($date));
+            $daily = $samples->where('date', $date->toDateString());
             $total = $daily->count();
-            $isToday = $date->isToday();
+            $isLive = $date->isToday();
 
             return [
                 'date' => $date->toDateString(),
                 'label' => $date->format('M j'),
-                'uptime' => $isToday
+                'uptime' => $isLive
                     ? $liveUptime
                     : ($total === 0
                     ? 0
                     : round(($daily->where('status', '!=', 'down')->count() / $total) * 100, 2)),
-                'live' => $isToday,
+                'live' => $isLive,
             ];
         })->all();
 
-        $totalChecks = $checks->count();
+        $totalChecks = $samples->count();
 
         return [
             'overall_uptime' => $totalChecks === 0
                 ? 0
-                : round(($checks->where('status', '!=', 'down')->count() / $totalChecks) * 100, 2),
+                : round(($samples->where('status', '!=', 'down')->count() / $totalChecks) * 100, 2),
             'systems' => $systems,
             'trend' => $trend,
             'period_days' => $days,
@@ -90,6 +100,37 @@ class SystemHealthService
     }
 
     /**
+     * @return array{system_name: string, date: string, status: string, response_time_ms: int}
+     */
+    private function historicalProbe(
+        string $systemName,
+        int $baseResponseTime,
+        CarbonInterface $date,
+        int $slot,
+    ): array {
+        $key = "{$systemName}:{$date->toDateString()}:{$slot}";
+        $signal = abs(crc32($key)) % 1000;
+        $status = match (true) {
+            $signal < 8 => 'down',
+            $signal < 70 => 'degraded',
+            default => 'up',
+        };
+        $variation = abs(crc32("response:{$key}")) % 180;
+        $penalty = match ($status) {
+            'down' => 900,
+            'degraded' => 300,
+            default => 0,
+        };
+
+        return [
+            'system_name' => $systemName,
+            'date' => $date->toDateString(),
+            'status' => $status,
+            'response_time_ms' => $baseResponseTime + $variation + $penalty,
+        ];
+    }
+
+    /**
      * Generate a stable mock probe for each ten-second interval.
      *
      * @return array{status: string, response_time_ms: int}
@@ -103,7 +144,7 @@ class SystemHealthService
             $signal < 15 => 'degraded',
             default => 'up',
         };
-        $base = self::LIVE_RESPONSE_BASE[$systemName] ?? 200;
+        $base = self::SYSTEMS[$systemName] ?? 200;
         $variation = abs(crc32("response:{$systemName}:{$bucket}")) % 140;
         $penalty = match ($status) {
             'down' => 900,

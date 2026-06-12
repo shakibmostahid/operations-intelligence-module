@@ -65,6 +65,24 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_logout_removes_live_health_preference_cookie(): void
+    {
+        $user = $this->user([
+            'status' => 'active',
+            'must_change_password' => false,
+        ]);
+        $csrfToken = 'test-csrf-token';
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->withCookie('live_health_enabled', '0')
+            ->post('/logout', ['_token' => $csrfToken])
+            ->assertRedirect('/login')
+            ->assertCookieExpired('live_health_enabled');
+
+        $this->assertGuest();
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

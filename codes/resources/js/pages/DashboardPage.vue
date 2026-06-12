@@ -23,6 +23,10 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    liveHealthEnabled: {
+        type: Boolean,
+        default: true,
+    },
     selfAssignedIncidents: {
         type: Object,
         required: true,
@@ -71,6 +75,8 @@ const dailySummaryError = ref('');
 const healthResults = ref(props.systemHealth);
 const healthLoading = ref(false);
 const healthError = ref('');
+const liveHealthEnabled = ref(props.liveHealthEnabled);
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 let healthRefreshTimer = null;
 const palette = ['#DC2626', '#D97706', '#2563EB', '#0891B2', '#7C3AED', '#475569'];
 const breachSeverityClass = {
@@ -342,18 +348,70 @@ const loadSystemHealth = async () => {
     }
 };
 
-onMounted(() => {
-    loadDailySummary();
+const stopHealthRefresh = () => {
+    if (healthRefreshTimer !== null) {
+        window.clearInterval(healthRefreshTimer);
+        healthRefreshTimer = null;
+    }
+};
+
+const startHealthRefresh = () => {
+    stopHealthRefresh();
+
+    if (!liveHealthEnabled.value) {
+        return;
+    }
+
     healthRefreshTimer = window.setInterval(
         loadSystemHealth,
         healthResults.value.refresh_after_seconds * 1000,
     );
+};
+
+const toggleLiveHealth = async () => {
+    const enabled = liveHealthEnabled.value;
+    stopHealthRefresh();
+    healthLoading.value = true;
+    healthError.value = '';
+
+    try {
+        const response = await fetch('/dashboard/live-health-preference', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ enabled }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Unable to save the live graph preference.');
+        }
+
+        healthLoading.value = false;
+
+        if (enabled) {
+            await loadSystemHealth();
+        }
+
+        startHealthRefresh();
+    } catch (error) {
+        liveHealthEnabled.value = !enabled;
+        healthError.value = error.message;
+        healthLoading.value = false;
+        startHealthRefresh();
+    }
+};
+
+onMounted(() => {
+    loadDailySummary();
+    startHealthRefresh();
 });
 
 onUnmounted(() => {
-    if (healthRefreshTimer !== null) {
-        window.clearInterval(healthRefreshTimer);
-    }
+    stopHealthRefresh();
 });
 
 </script>
@@ -441,16 +499,46 @@ onUnmounted(() => {
                     <div>
                         <div class="flex items-center gap-2">
                             <p class="text-sm font-semibold">System availability</p>
-                            <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#297069]">
-                                <span class="size-2 animate-pulse rounded-full bg-[#2f8b7e]"></span>
-                                Live mock
+                            <span
+                                class="inline-flex items-center gap-1.5 text-xs font-semibold"
+                                :class="liveHealthEnabled ? 'text-[#297069]' : 'text-[#667079]'"
+                            >
+                                <span
+                                    class="size-2 rounded-full"
+                                    :class="liveHealthEnabled ? 'animate-pulse bg-[#2f8b7e]' : 'bg-[#a2a9ad]'"
+                                ></span>
+                                {{ liveHealthEnabled ? 'Auto-refreshing' : 'Paused' }}
                             </span>
                         </div>
                         <p class="mt-1 text-xs text-[#667079]">
-                            Seven-day history with mock API probes refreshed every {{ healthResults.refresh_after_seconds }} seconds.
+                            <template v-if="liveHealthEnabled">
+                                Seven-day history with mock API probes refreshed every {{ healthResults.refresh_after_seconds }} seconds.
+                            </template>
+                            <template v-else>
+                                Auto-refresh is paused. The current snapshot remains visible.
+                            </template>
                         </p>
                     </div>
                     <div class="flex items-center gap-4">
+                        <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#566169]">
+                            <span>Live graph</span>
+                            <input
+                                v-model="liveHealthEnabled"
+                                type="checkbox"
+                                class="peer sr-only"
+                                :disabled="healthLoading"
+                                @change="toggleLiveHealth"
+                            >
+                            <span
+                                class="relative h-6 w-11 border transition-colors peer-disabled:cursor-wait peer-disabled:opacity-60"
+                                :class="liveHealthEnabled ? 'border-[#297069] bg-[#297069]' : 'border-[#aeb7bc] bg-[#dce1e4]'"
+                            >
+                                <span
+                                    class="absolute left-0.5 top-0.5 size-4 bg-white transition-transform"
+                                    :class="liveHealthEnabled ? 'translate-x-5' : ''"
+                                ></span>
+                            </span>
+                        </label>
                         <div class="text-right">
                             <p class="text-xs uppercase text-[#667079]">Overall uptime</p>
                             <p class="mt-1 text-2xl font-semibold" :class="uptimeClass(healthResults.overall_uptime)">{{ healthResults.overall_uptime }}%</p>
@@ -474,7 +562,7 @@ onUnmounted(() => {
                                 <span class="min-w-0">
                                     <strong>{{ system.name }}</strong>
                                     <span class="ml-2 text-xs text-[#899298]">
-                                        {{ system.current_response_ms }} ms now · {{ system.average_response_ms }} ms avg
+                                        {{ system.current_response_ms }} ms current · {{ system.average_response_ms }} ms avg
                                     </span>
                                 </span>
                                 <span class="flex shrink-0 items-center gap-2">
@@ -498,7 +586,8 @@ onUnmounted(() => {
                         <div class="mb-3 flex items-center justify-between">
                             <p class="text-sm font-semibold">Daily uptime trend</p>
                             <span class="text-xs text-[#667079]">
-                                Today live {{ currentLiveUptime }}% · Target 99% · {{ healthResults.checked_at }}
+                                Today {{ currentLiveUptime }}%
+                                · Target 99% · {{ healthResults.checked_at }}
                             </span>
                         </div>
                         <div class="h-[190px]">

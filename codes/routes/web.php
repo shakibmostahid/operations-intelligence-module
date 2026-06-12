@@ -35,6 +35,8 @@ Route::middleware('auth')->group(function (): void {
             ->name('dashboard.daily-summary');
         Route::get('/dashboard/system-health', [DashboardController::class, 'systemHealth'])
             ->name('dashboard.system-health');
+        Route::post('/dashboard/live-health-preference', [DashboardController::class, 'updateLiveHealthPreference'])
+            ->name('dashboard.live-health-preference');
         Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
         Route::get('/incidents/export.csv', [IncidentController::class, 'exportCsv'])
             ->name('incidents.export.csv');

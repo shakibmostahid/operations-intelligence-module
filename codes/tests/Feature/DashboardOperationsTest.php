@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Incident;
 use App\Models\Role;
-use App\Models\SystemHealthCheck;
 use App\Models\User;
 use App\Services\DailyOperationsSummaryService;
 use App\Services\SystemHealthService;
@@ -55,35 +54,25 @@ class DashboardOperationsTest extends TestCase
         $this->assertSame(['name' => 'monitoring', 'count' => 2], $summary['top_source']);
     }
 
-    public function test_system_health_excludes_future_checks_and_adds_live_probe_data(): void
+    public function test_system_health_generates_mock_history_and_live_probe_data(): void
     {
         Carbon::setTestNow('2026-06-13 12:00:00');
 
-        SystemHealthCheck::query()->create([
-            'system_name' => 'Checkout API',
-            'status' => 'up',
-            'response_time_ms' => 150,
-            'checked_at' => now()->subMinute(),
-        ]);
-        SystemHealthCheck::query()->create([
-            'system_name' => 'Checkout API',
-            'status' => 'down',
-            'response_time_ms' => 1000,
-            'checked_at' => now()->addHour(),
-        ]);
-
         $health = app(SystemHealthService::class)->dashboard();
 
-        $this->assertSame(100.0, $health['overall_uptime']);
+        $this->assertGreaterThan(90, $health['overall_uptime']);
         $this->assertSame(10, $health['refresh_after_seconds']);
-        $this->assertSame(150, $health['systems'][0]['average_response_ms']);
+        $this->assertCount(3, $health['systems']);
+        $this->assertCount(7, $health['trend']);
+        $this->assertIsInt($health['systems'][0]['average_response_ms']);
         $this->assertContains($health['systems'][0]['latest_status'], ['up', 'degraded', 'down']);
         $this->assertIsInt($health['systems'][0]['current_response_ms']);
-        $expectedLiveUptime = match ($health['systems'][0]['latest_status']) {
-            'up' => 100.0,
-            'degraded' => 50.0,
-            'down' => 0.0,
-        };
+        $expectedLiveUptime = round(collect($health['systems'])
+            ->sum(fn (array $system): int => match ($system['latest_status']) {
+                'up' => 100,
+                'degraded' => 50,
+                'down' => 0,
+            }) / count($health['systems']), 2);
         $this->assertSame($expectedLiveUptime, $health['trend'][6]['uptime']);
         $this->assertTrue($health['trend'][6]['live']);
     }
@@ -92,13 +81,6 @@ class DashboardOperationsTest extends TestCase
     {
         Carbon::setTestNow('2026-06-13 12:00:00');
         $user = $this->user();
-
-        SystemHealthCheck::query()->create([
-            'system_name' => 'Checkout API',
-            'status' => 'up',
-            'response_time_ms' => 150,
-            'checked_at' => now(),
-        ]);
 
         $this->actingAs($user)
             ->getJson('/dashboard/daily-summary')
@@ -121,6 +103,20 @@ class DashboardOperationsTest extends TestCase
                 'trend',
                 'checked_at',
             ]);
+    }
+
+    public function test_live_health_preference_endpoint_stores_cookie(): void
+    {
+        $user = $this->user();
+        $csrfToken = 'test-csrf-token';
+
+        $this->actingAs($user)
+            ->withSession(['_token' => $csrfToken])
+            ->withHeader('X-CSRF-TOKEN', $csrfToken)
+            ->postJson('/dashboard/live-health-preference', ['enabled' => false])
+            ->assertOk()
+            ->assertJsonPath('enabled', false)
+            ->assertCookie('live_health_enabled', '0');
     }
 
     private function user(): User

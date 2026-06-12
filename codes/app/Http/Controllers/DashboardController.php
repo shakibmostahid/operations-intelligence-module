@@ -39,6 +39,7 @@ class DashboardController extends Controller
         [$from, $to] = $this->dateRange($request, $timeframe);
         $trendTo = CarbonImmutable::today()->endOfDay();
         $trendFrom = $trendTo->subDays(29)->startOfDay();
+        $liveHealthEnabled = $this->liveHealthEnabled($request);
         $this->alertRoutingService->routeCurrentSlaBreaches();
 
         return view('app', [
@@ -52,6 +53,7 @@ class DashboardController extends Controller
                 'dashboardTrend' => $this->dashboardService->incidentTrend($trendFrom, $trendTo),
                 'alerts' => $this->alertRoutingService->alertsFor($user),
                 'systemHealth' => $this->systemHealthService->dashboard(),
+                'liveHealthEnabled' => $liveHealthEnabled,
                 'selfAssignedIncidents' => $this->incidentService->selfAssignedIncidents($user),
                 'slaBreaches' => $this->incidentService->unresolvedBreaches(),
                 'timeframe' => $timeframe,
@@ -113,6 +115,28 @@ class DashboardController extends Controller
         return response()->json($this->systemHealthService->dashboard());
     }
 
+    public function updateLiveHealthPreference(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+        $enabled = (bool) $validated['enabled'];
+
+        return response()
+            ->json(['enabled' => $enabled])
+            ->withCookie(cookie(
+                'live_health_enabled',
+                $enabled ? '1' : '0',
+                60 * 24 * 365,
+                '/',
+                null,
+                $request->isSecure(),
+                true,
+                false,
+                'lax',
+            ));
+    }
+
     /**
      * @return array{0: CarbonInterface|null, 1: CarbonInterface|null}
      */
@@ -159,5 +183,10 @@ class DashboardController extends Controller
             'email' => $user->email,
             'role' => $user->role->role,
         ];
+    }
+
+    private function liveHealthEnabled(Request $request): bool
+    {
+        return $request->cookie('live_health_enabled', '1') !== '0';
     }
 }
