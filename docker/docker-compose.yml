@@ -50,8 +50,6 @@ services:
     image: mysql:8.4
     container_name: operations-intelligence-module-mysql
     restart: unless-stopped
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
     env_file:
       - ${MYSQL_ENV_FILE:-./envs/mysql.env}
     environment:
