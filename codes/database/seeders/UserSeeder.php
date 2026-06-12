@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
             ->get()
             ->keyBy('role');
 
-        $superAdmin = User::query()->updateOrCreate(
+        $superAdmin = User::query()->firstOrCreate(
             ['email' => 'super.admin@iot.com'],
             [
                 'name' => 'Super Administrator',
@@ -44,7 +44,7 @@ class UserSeeder extends Seeder
                 'role' => 'viewer',
             ],
         ] as $user) {
-            User::query()->updateOrCreate(
+            User::query()->firstOrCreate(
                 ['email' => $user['email']],
                 [
                     'name' => $user['name'],

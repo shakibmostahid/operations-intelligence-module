@@ -84,6 +84,20 @@ class IncidentWorkflowTest extends TestCase
         }
     }
 
+    public function test_incident_list_is_sorted_by_latest_by_default(): void
+    {
+        $creator = $this->user('support_engineer');
+        $older = $this->incident($creator);
+        $newer = $this->incident($creator);
+
+        $older->forceFill(['created_at' => now()->subDay()])->save();
+        $newer->forceFill(['created_at' => now()])->save();
+
+        $incidents = $this->service()->filteredIncidents([]);
+
+        $this->assertSame([$newer->id, $older->id], $incidents->pluck('id')->all());
+    }
+
     private function service(): IncidentService
     {
         return app(IncidentService::class);

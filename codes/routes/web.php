@@ -25,10 +25,16 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('password.changed')->group(function (): void {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])
+            ->name('dashboard.analytics');
         Route::get('/dashboard/sla-breaches', [DashboardController::class, 'slaBreaches'])
             ->name('dashboard.sla-breaches');
         Route::get('/dashboard/trend', [DashboardController::class, 'trend'])
             ->name('dashboard.trend');
+        Route::get('/dashboard/daily-summary', [DashboardController::class, 'dailySummary'])
+            ->name('dashboard.daily-summary');
+        Route::get('/dashboard/system-health', [DashboardController::class, 'systemHealth'])
+            ->name('dashboard.system-health');
         Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');
         Route::get('/incidents/export.csv', [IncidentController::class, 'exportCsv'])
             ->name('incidents.export.csv');

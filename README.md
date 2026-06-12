@@ -8,7 +8,7 @@ It addresses fragmented operational reporting by providing a shared incident que
 
 ## Features
 
-- Operational dashboard with incident, SLA, uptime, tag, severity, status, and trend metrics
+- Operational dashboard with a daily summary plus incident, SLA, live mock uptime, tag, severity, status, and trend metrics
 - Incident creation, assignment, filtering, pagination, status changes, escalation, resolution, comments, and RCA notes
 - SLA health detection with breached and at-risk incident views
 - Immutable activity timeline for incident changes and comments
@@ -218,6 +218,8 @@ The dashboard includes:
 - Current user’s unresolved assigned incidents
 - Paginated unresolved SLA breaches
 - Routed in-app alerts
+- Deterministic daily operations summary
+- Live mock system probes refreshed without a page reload
 
 Dashboard metrics support predefined and custom date ranges.
 

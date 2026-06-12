@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\DashboardService;
 use App\Services\AlertRoutingService;
+use App\Services\DailyOperationsSummaryService;
+use App\Services\DashboardService;
 use App\Services\IncidentService;
 use App\Services\SystemHealthService;
 use Carbon\CarbonImmutable;
@@ -21,6 +22,7 @@ class DashboardController extends Controller
         private readonly IncidentService $incidentService,
         private readonly AlertRoutingService $alertRoutingService,
         private readonly SystemHealthService $systemHealthService,
+        private readonly DailyOperationsSummaryService $dailyOperationsSummaryService,
     ) {
     }
 
@@ -35,13 +37,19 @@ class DashboardController extends Controller
         }
 
         [$from, $to] = $this->dateRange($request, $timeframe);
+        $trendTo = CarbonImmutable::today()->endOfDay();
+        $trendFrom = $trendTo->subDays(29)->startOfDay();
         $this->alertRoutingService->routeCurrentSlaBreaches();
 
         return view('app', [
             'page' => 'dashboard',
             'props' => [
                 'user' => $this->authenticatedUser($user),
-                'analytics' => $this->dashboardService->analytics($from, $to),
+                'chartAnalytics' => [
+                    ...$this->dashboardService->analytics($from, $to),
+                    'trend' => [],
+                ],
+                'dashboardTrend' => $this->dashboardService->incidentTrend($trendFrom, $trendTo),
                 'alerts' => $this->alertRoutingService->alertsFor($user),
                 'systemHealth' => $this->systemHealthService->dashboard(),
                 'selfAssignedIncidents' => $this->incidentService->selfAssignedIncidents($user),
@@ -63,6 +71,24 @@ class DashboardController extends Controller
         return response()->json($this->incidentService->unresolvedBreaches());
     }
 
+    public function analytics(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'timeframe' => ['required', 'in:today,7,30,90,all,custom'],
+            'from' => ['nullable', 'required_if:timeframe,custom', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'required_if:timeframe,custom', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ]);
+        $timeframe = $validated['timeframe'];
+        [$from, $to] = $this->dateRange($request, $timeframe);
+
+        return response()->json([
+            'analytics' => $this->dashboardService->analytics($from, $to),
+            'timeframe' => $timeframe,
+            'dateFrom' => $from?->toDateString(),
+            'dateTo' => $to?->toDateString(),
+        ]);
+    }
+
     public function trend(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -75,6 +101,16 @@ class DashboardController extends Controller
             'trend' => $this->dashboardService->incidentTrend($from, $to),
             'timeframe' => $timeframe,
         ]);
+    }
+
+    public function dailySummary(): JsonResponse
+    {
+        return response()->json($this->dailyOperationsSummaryService->generate());
+    }
+
+    public function systemHealth(): JsonResponse
+    {
+        return response()->json($this->systemHealthService->dashboard());
     }
 
     /**

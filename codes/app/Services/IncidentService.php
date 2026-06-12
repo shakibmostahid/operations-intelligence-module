@@ -70,9 +70,8 @@ class IncidentService
                 ($filters['sort'] ?? null) === 'id',
                 fn (Builder $query) => $query->orderBy('id', $filters['direction'] ?? 'asc'),
                 fn (Builder $query) => $query
-                    ->orderByRaw("FIELD(severity, 'critical', 'high', 'medium', 'low')")
-                    ->orderByRaw("CASE WHEN status = 'resolved' THEN 1 ELSE 0 END")
-                    ->orderBy('sla_deadline'),
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id'),
             );
     }
 
