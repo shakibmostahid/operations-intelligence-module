@@ -134,9 +134,12 @@ docker compose run --rm app php artisan migrate --seed
 ```
 
 Start the application:
+
 ```bash
 docker compose up -d app
 ```
+
+The `app` service depends on healthy Nginx and MySQL services, so this command starts the complete stack.
 
 Open the application at:
 

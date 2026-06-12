@@ -14,6 +14,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      nginx:
+        condition: service_started
     volumes:
       - build-assets:/var/www/html/public/build
     networks:
@@ -27,9 +29,6 @@ services:
       dockerfile: docker/Nginx.Dockerfile
     container_name: operations-intelligence-module-nginx
     restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_started
     environment:
       TZ: ${TZ:-Asia/Dhaka}
     ports:
