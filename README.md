@@ -22,7 +22,7 @@
 * [Mock Webhook](#mock-webhook)
 * [Logging](#logging)
 * [Useful Commands](#useful-commands)
-* [Tests](#tests)
+* [Run Tests](#run-tests)
 * [Known Limitations](#known-limitations)
 * [With More Time](#with-more-time)
 * [AI Tools Used](#ai-tools-used)
@@ -411,6 +411,7 @@ The E2E Compose file includes the base and development Compose files automatical
 7. Generate reports from API request logs and automatically create incidents when configurable failure thresholds are exceeded.
 8. Add a CI/CD pipeline for automated testing, frontend builds, image validation, and deployment.
 9. Add a secure password-reset workflow with expiring tokens and email delivery.
+10. Monthly Incident summary report.
 
 ## AI Tools Used
 
